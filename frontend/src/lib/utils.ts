@@ -7,6 +7,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency: string = '₹'): string {
+  if (typeof amount !== 'number' || isNaN(amount)) {
+    return `${currency}-`;
+  }
   return `${currency}${amount.toLocaleString('en-IN')}`;
 }
 

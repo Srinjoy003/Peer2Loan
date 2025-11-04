@@ -240,13 +240,15 @@ export function SummaryReport({ group, cycles, payments, members, currentCycle }
           <div className="bg-muted rounded-lg p-4 mt-4">
             <p>
               <span className="text-muted-foreground">Expected completion:</span>{' '}
-              {formatDate(
-                new Date(
-                  new Date(group.startMonth).setMonth(
-                    new Date(group.startMonth).getMonth() + group.duration
-                  )
-                ).toISOString()
-              )}
+              {(() => {
+                if (!group.startMonth || isNaN(Date.parse(group.startMonth)) || typeof group.duration !== 'number') {
+                  return '-';
+                }
+                const start = new Date(group.startMonth);
+                if (isNaN(start.getTime())) return '-';
+                start.setMonth(start.getMonth() + group.duration);
+                return formatDate(start.toISOString());
+              })()}
             </p>
           </div>
         </CardContent>

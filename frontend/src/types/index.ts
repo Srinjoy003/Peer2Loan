@@ -35,7 +35,11 @@ export interface Member {
   name: string;
   email: string;
   phone: string;
-  payoutAccount: string;
+  payoutAccount: {
+    accountNumber: string;
+    ifscCode: string;
+    accountHolderName: string;
+  };
   role: UserRole;
   emergencyContact?: {
     name: string;

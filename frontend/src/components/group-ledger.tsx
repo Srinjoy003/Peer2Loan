@@ -53,7 +53,7 @@ export function GroupLedger({ group, cycles, payments, members }: GroupLedgerPro
         <CardHeader>
           <CardTitle>{group.name}</CardTitle>
           <CardDescription>
-            {group.groupSize} members • {group.currency}{group.monthlyContribution.toLocaleString()} per month
+              {group.groupSize ?? '-'} members • {group.currency ?? ''}{typeof group.monthlyContribution === 'number' ? group.monthlyContribution.toLocaleString() : '-'} per month
           </CardDescription>
         </CardHeader>
         
@@ -82,15 +82,17 @@ export function GroupLedger({ group, cycles, payments, members }: GroupLedgerPro
           <div className="grid grid-cols-3 gap-4 pt-4 border-t">
             <div>
               <p className="text-muted-foreground">Start Date</p>
-              <p>{formatDate(group.startMonth)}</p>
+              <p>{group.startMonth ? formatDate(group.startMonth) : '-'}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Payment Window</p>
-              <p>Day {group.paymentWindow.startDay} - {group.paymentWindow.endDay}</p>
+              <p>
+                Day {group.paymentWindow?.startDay ?? '-'} - {group.paymentWindow?.endDay ?? '-'}
+              </p>
             </div>
             <div>
               <p className="text-muted-foreground">Turn Order</p>
-              <p className="capitalize">{group.turnOrderPolicy}</p>
+              <p className="capitalize">{group.turnOrderPolicy ?? '-'}</p>
             </div>
           </div>
 
