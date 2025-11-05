@@ -1,34 +1,39 @@
+
+
 const express = require("express");
 const cors = require("cors");
+const authRoutes = require("./routes/auth.js");
 
 const app = express();
 const PORT = 4000;
 app.use(cors());
 app.use(express.json());
 
-// Import models
-const group = require("./models/Group");
-const members = require("./models/Member");
-const cycles = require("./models/Cycle");
+// ...existing code...
 
-// API Endpoints
-app.get("/api/group", (req, res) => {
-	res.json(group);
-});
+// Import routes
+const groupRoutes = require("./routes/group.js");
+const memberRoutes = require("./routes/member.js");
+const cycleRoutes = require("./routes/cycle.js");
+const paymentRoutes = require("./routes/payment.js");
 
-app.get("/api/members", (req, res) => {
-	res.json(members);
-});
 
-app.get("/api/cycles", (req, res) => {
-	res.json(cycles);
-});
+// Group CRUD API
+app.use("/api/groups", groupRoutes);
+
+// Member CRUD API
+app.use("/api/members", memberRoutes);
+
+// Cycle CRUD API
+app.use("/api/cycles", cycleRoutes);
+
+// Payment CRUD API
+app.use("/api/payments", paymentRoutes);
+
+// Auth endpoints
+app.use("/api/auth", authRoutes);
 
 app.listen(PORT, () => {
-	console.log(`Backend API running on http://localhost:${PORT}`);
+  console.log(`Backend API running on http://localhost:${PORT}`);
 });
 
-<p>
-	{member.payoutAccount.accountHolderName} ({member.payoutAccount.accountNumber}
-	, {member.payoutAccount.ifscCode})
-</p>;

@@ -1,23 +1,38 @@
-// Member Model (Mock)
-module.exports = [
-  {
-    id: 'member-1',
-    name: 'Asha Kumar',
-    email: 'asha@example.com',
-    passwordHash: 'hashed_pw',
-    role: 'admin',
-    contactNumber: '+91-9876543210',
-    payoutAccount: {
-      accountNumber: 'XXXX-1234',
-      ifscCode: 'IFSC0001',
-      accountHolderName: 'Asha Kumar'
-    },
-    emergencyContact: {
-      name: 'Raj Kumar',
-      phoneNumber: '+91-9876543211'
-    },
-    groups: ['group-1'],
-    joinedAt: '2024-12-01'
-  },
-  // ...other members (same structure)
-];
+const { getDB } = require('../db.js');
+const { ObjectId } = require('mongodb');
+
+async function createMember(memberData) {
+  const db = getDB();
+  const result = await db.collection('members').insertOne(memberData);
+  return result.insertedId;
+}
+
+async function getMemberById(id) {
+  const db = getDB();
+  return db.collection('members').findOne({ _id: new ObjectId(id) });
+}
+
+async function getAllMembers() {
+  const db = getDB();
+  return db.collection('members').find({}).toArray();
+}
+
+async function updateMember(id, update) {
+  const db = getDB();
+  await db.collection('members').updateOne({ _id: new ObjectId(id) }, { $set: update });
+  return getMemberById(id);
+}
+
+async function deleteMember(id) {
+  const db = getDB();
+  await db.collection('members').deleteOne({ _id: new ObjectId(id) });
+  return true;
+}
+
+module.exports = {
+  createMember,
+  getMemberById,
+  getAllMembers,
+  updateMember,
+  deleteMember
+};

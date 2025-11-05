@@ -27,6 +27,7 @@ import { PaymentRecorder } from "./components/payment-recorder";
 import { TurnOrderTimeline } from "./components/turn-order-timeline";
 // import { mockGroup, mockMembers, mockCycles, mockPayments } from './lib/mock-data';
 import { Group, Member, Cycle, Payment } from "./types";
+import { GroupDropdown } from "./components/group-dropdown";
 import { formatCurrency } from "./lib/utils";
 import {
 	Users,
@@ -38,25 +39,28 @@ import {
 } from "lucide-react";
 
 export default function App() {
-		const [showAddGroup, setShowAddGroup] = useState(false);
-		const [selectedGroup, setSelectedGroup] = useState(null);
-		const [showEditGroup, setShowEditGroup] = useState(false);
-		const [loading, setLoading] = useState(true);
-		const [error, setError] = useState('');
-		async function fetchGroups() {
-			try {
-				const token = localStorage.getItem('token');
-				const headers = token ? { Authorization: `Bearer ${token}` } : {};
-				const groupRes = await fetch("/api/groups", { headers });
-				if (!groupRes.ok) throw new Error('Failed to fetch groups');
-				const groupData = await groupRes.json();
-				setGroup(groupData);
-			} catch (err) {
-				setError(err.message);
-			} finally {
-				setLoading(false);
+	const [showAddGroup, setShowAddGroup] = useState(false);
+	const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+	const [showEditGroup, setShowEditGroup] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState("");
+	async function fetchGroups() {
+		try {
+			const token = localStorage.getItem("token");
+			const headers = token ? { Authorization: `Bearer ${token}` } : {};
+			const groupRes = await fetch("/api/groups", { headers });
+			if (!groupRes.ok) throw new Error("Failed to fetch groups");
+			const groupData = await groupRes.json();
+			setGroup(groupData);
+			if (Array.isArray(groupData) && groupData.length > 0) {
+				setSelectedGroupId(groupData[0].id);
 			}
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setLoading(false);
 		}
+	}
 	const [showAddCycle, setShowAddCycle] = useState(false);
 	const [selectedCycle, setSelectedCycle] = useState(null);
 	const [showEditCycle, setShowEditCycle] = useState(false);
@@ -64,7 +68,7 @@ export default function App() {
 	const [selectedPaymentObj, setSelectedPaymentObj] = useState(null);
 	const [showEditPayment, setShowEditPayment] = useState(false);
 	async function fetchCycles() {
-		const token = localStorage.getItem('token');
+		const token = localStorage.getItem("token");
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
 		const cyclesRes = await fetch("/api/cycles", { headers });
 		const cyclesData = await cyclesRes.json();
@@ -72,7 +76,7 @@ export default function App() {
 	}
 
 	async function fetchPayments() {
-		const token = localStorage.getItem('token');
+		const token = localStorage.getItem("token");
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
 		const paymentsRes = await fetch("/api/payments", { headers });
 		const paymentsData = await paymentsRes.json();
@@ -92,7 +96,7 @@ export default function App() {
 
 	// Fetch all data from backend on mount, only if user is logged in
 	async function fetchMembers() {
-		const token = localStorage.getItem('token');
+		const token = localStorage.getItem("token");
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
 		const membersRes = await fetch("/api/members", { headers });
 		const membersData = await membersRes.json();
@@ -101,50 +105,60 @@ export default function App() {
 
 	useEffect(() => {
 		if (!user) return;
-			async function fetchAll() {
-				setLoading(true);
-				setError('');
-				try {
-					const token = localStorage.getItem('token');
-					const headers = token ? { Authorization: `Bearer ${token}` } : {};
-					const [groupRes, membersRes, cyclesRes] = await Promise.all([
-						fetch("/api/groups", { headers }),
-						fetch("/api/members", { headers }),
-						fetch("/api/cycles", { headers }),
-					]);
-					if (!groupRes.ok) throw new Error('Failed to fetch groups');
-					if (!membersRes.ok) throw new Error('Failed to fetch members');
-					if (!cyclesRes.ok) throw new Error('Failed to fetch cycles');
-					const groupData = await groupRes.json();
-					const membersData = await membersRes.json();
-					const cyclesData = await cyclesRes.json();
+		async function fetchAll() {
+			setLoading(true);
+			setError("");
+			try {
+				const token = localStorage.getItem("token");
+				const headers = token ? { Authorization: `Bearer ${token}` } : {};
+				const [groupRes, membersRes, cyclesRes] = await Promise.all([
+					fetch("/api/groups", { headers }),
+					fetch("/api/members", { headers }),
+					fetch("/api/cycles", { headers }),
+				]);
+				if (!groupRes.ok) throw new Error("Failed to fetch groups");
+				if (!membersRes.ok) throw new Error("Failed to fetch members");
+				if (!cyclesRes.ok) throw new Error("Failed to fetch cycles");
+				const groupData = await groupRes.json();
+				const membersData = await membersRes.json();
+				const cyclesData = await cyclesRes.json();
 				setGroup(Array.isArray(groupData) ? groupData[0] || null : groupData);
-					setMembers(membersData);
-					setCycles(cyclesData);
-					// Flatten all contributions from cycles into a payments array
-					const allPayments = cyclesData.flatMap((cycle: any) =>
-						(cycle.contributions || []).map((contribution: any) => ({
-							...contribution,
-							cycleId: cycle.id,
-							status: contribution.hasPaid ? 'paid' : 'pending',
-							amount: groupData?.monthlyAmount,
-						}))
-					);
-					setPayments(allPayments);
-				} catch (err) {
-					setError(err.message);
-				} finally {
-					setLoading(false);
+				if (Array.isArray(groupData) && groupData.length > 0) {
+					setSelectedGroupId(groupData[0].id);
 				}
+				setMembers(membersData);
+				setCycles(cyclesData);
+				// Flatten all contributions from cycles into a payments array
+				const allPayments = cyclesData.flatMap((cycle: any) =>
+					(cycle.contributions || []).map((contribution: any) => ({
+						...contribution,
+						cycleId: cycle.id,
+						status: contribution.hasPaid ? "paid" : "pending",
+						amount: groupData?.monthlyAmount,
+					}))
+				);
+				setPayments(allPayments);
+			} catch (err) {
+				setError(err.message);
+			} finally {
+				setLoading(false);
 			}
-			fetchAll();
+		}
+		fetchAll();
 	}, [user]);
 
-	const currentCycle = cycles.find((c) => c.status === "active");
-	const currentUser = members[0]; // Simulating logged-in user as first member (admin)
+	const selectedGroup = Array.isArray(group)
+		? group.find((g: Group) => g.id === selectedGroupId)
+		: group;
+	const currentCycle = cycles.find(
+		(c) => c.status === "active" && c.groupId === selectedGroupId
+	);
+	const currentUser = members.find((m) => m.groupId === selectedGroupId);
 
 	const handleGroupCreated = (newGroup: Group) => {
-		setGroup(newGroup);
+		// After creating a group, fetch all groups from backend and set selected group
+		fetchGroups();
+		setSelectedGroupId(newGroup.id);
 		setCurrentView("dashboard");
 		alert(
 			"Group created successfully! You can now add members and start the first cycle."
@@ -220,152 +234,203 @@ export default function App() {
 
 	function handleLogout() {
 		setUser(null);
-		localStorage.removeItem('token');
+		localStorage.removeItem("token");
 	}
 
-		if (currentView === "setup") {
-			return <GroupSetup onGroupCreated={handleGroupCreated} onCancel={() => setCurrentView("dashboard")} />;
+	if (currentView === "setup") {
+		return (
+			<GroupSetup
+				onGroupCreated={handleGroupCreated}
+				onCancel={() => setCurrentView("dashboard")}
+			/>
+		);
 	}
 
 	if (!user) {
 		return <AuthForm onAuth={setUser} />;
 	}
 
-		if (loading) {
-			return (
-				<div className="min-h-screen flex items-center justify-center">
-					Loading...
-				</div>
-			);
-		}
-		if (error) {
-			return (
-				<div className="min-h-screen flex items-center justify-center text-red-600">
-					Error: {error}
-				</div>
-			);
-		}
-				// Always render dashboard UI, show empty states if no group
+	if (loading) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				Loading...
+			</div>
+		);
+	}
+	if (error) {
+		return (
+			<div className="min-h-screen flex items-center justify-center text-red-600">
+				Error: {error}
+			</div>
+		);
+	}
+	// Always render dashboard UI, show empty states if no group
 
-				const showEmpty = !group;
+	const showEmpty = !selectedGroup;
 
-				return (
-					<div className="min-h-screen bg-background">
-						{/* Header */}
-						<header className="border-b bg-card sticky top-0 z-10">
-							<div className="container mx-auto px-6 py-4">
-								<div className="flex items-center justify-between">
-									<div>
-										<h1>Peer2Loan</h1>
-										<p className="text-muted-foreground">{group ? group.name : 'No group yet'}</p>
-									</div>
-									<div className="flex items-center gap-4">
-										<div className="text-right">
-											<p className="text-muted-foreground">Logged in as</p>
-											<p>{user?.name}</p>
-										</div>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={handleLogout}
-											className="gap-2"
-										>
-											Logout
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => setCurrentView("setup")}
-											className="gap-2"
-										>
-											<PlusCircle className="w-4 h-4" />
-											Create New Group
-										</Button>
-									</div>
-								</div>
+	return (
+		<div className="min-h-screen bg-background">
+			{/* Header */}
+			<header className="border-b bg-card sticky top-0 z-10">
+				<div className="container mx-auto px-6 py-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<h1>Peer2Loan</h1>
+							<div className="flex items-center gap-2">
+								<GroupDropdown
+									groups={Array.isArray(group) ? group : group ? [group] : []}
+									selectedGroupId={selectedGroupId}
+									onSelectGroup={setSelectedGroupId}
+								/>
+								<p className="text-muted-foreground">
+									{selectedGroup ? selectedGroup.name : "No group yet"}
+								</p>
 							</div>
-						</header>
-
-						{/* Main Content */}
-						<main className="container mx-auto px-6 py-8">
-							<Tabs defaultValue="current" className="space-y-6">
-								<TabsList className="grid w-full grid-cols-6">
-									<TabsTrigger value="current" className="gap-2">
-										<Calendar className="w-4 h-4" />
-										Current Cycle
-									</TabsTrigger>
-									<TabsTrigger value="timeline" className="gap-2">
-										<TrendingUp className="w-4 h-4" />
-										Timeline
-									</TabsTrigger>
-									<TabsTrigger value="members" className="gap-2">
-										<Users className="w-4 h-4" />
-										Members
-									</TabsTrigger>
-									<TabsTrigger value="group" className="gap-2">
-										<Settings className="w-4 h-4" />
-										Group Ledger
-									</TabsTrigger>
-									<TabsTrigger value="reports" className="gap-2">
-										<FileText className="w-4 h-4" />
-										Reports
-									</TabsTrigger>
-								</TabsList>
-								<TabsContent value="current">
-									{showEmpty ? (
-										<Card><CardContent>No group or cycle data yet.</CardContent></Card>
-									) : (
-										<CycleDashboard
-											cycle={cycles.find((c) => c.status === "active")}
-											payments={payments}
-											members={members}
-											group={group}
-											onRecordPayment={handleRecordPayment}
-											onExecutePayout={handleExecutePayout}
-										/>
-									)}
-								</TabsContent>
-											<TabsContent value="timeline">
-												{showEmpty || cycles.length === 0 ? (
-													<Card><CardContent>No timeline data yet.</CardContent></Card>
-												) : (
-													<TurnOrderTimeline group={group} members={members} cycles={cycles} />
-												)}
-											</TabsContent>
-								<TabsContent value="members">
-												{showEmpty ? (
-													<Card><CardContent>No members yet.</CardContent></Card>
-												) : (
-										<MemberLedger member={members[0]} payments={payments} cycles={cycles} group={group} />
-									)}
-								</TabsContent>
-								<TabsContent value="group">
-									{showEmpty ? (
-										<Card><CardContent>No group ledger data yet.</CardContent></Card>
-									) : (
-										<GroupLedger group={group} cycles={cycles} payments={payments} members={members} />
-									)}
-								</TabsContent>
-								<TabsContent value="reports">
-									{showEmpty ? (
-										<Card><CardContent>No reports yet.</CardContent></Card>
-									) : (
-										<SummaryReport group={group} cycles={cycles} payments={payments} members={members} />
-									)}
-								</TabsContent>
-							</Tabs>
-						</main>
-						{/* Show GroupSetup modal if currentView is setup */}
-						{currentView === "setup" && (
-							<div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-								<div className="bg-white rounded-lg shadow-lg p-8">
-									<GroupSetup onGroupCreated={handleGroupCreated} />
-									<Button className="mt-4" onClick={() => setCurrentView("dashboard")}>Cancel</Button>
-								</div>
+						</div>
+						<div className="flex items-center gap-4">
+							<div className="text-right">
+								<p className="text-muted-foreground">Logged in as</p>
+								<p>{user?.name}</p>
 							</div>
-						)}
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleLogout}
+								className="gap-2"
+							>
+								Logout
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setCurrentView("setup")}
+								className="gap-2"
+							>
+								<PlusCircle className="w-4 h-4" />
+								Create New Group
+							</Button>
+						</div>
 					</div>
-				);
+				</div>
+			</header>
+
+			{/* Main Content */}
+			<main className="container mx-auto px-6 py-8">
+				<Tabs defaultValue="current" className="space-y-6">
+					<TabsList className="grid w-full grid-cols-6">
+						<TabsTrigger value="current" className="gap-2">
+							<Calendar className="w-4 h-4" />
+							Current Cycle
+						</TabsTrigger>
+						<TabsTrigger value="timeline" className="gap-2">
+							<TrendingUp className="w-4 h-4" />
+							Timeline
+						</TabsTrigger>
+						<TabsTrigger value="members" className="gap-2">
+							<Users className="w-4 h-4" />
+							Members
+						</TabsTrigger>
+						<TabsTrigger value="group" className="gap-2">
+							<Settings className="w-4 h-4" />
+							Group Ledger
+						</TabsTrigger>
+						<TabsTrigger value="reports" className="gap-2">
+							<FileText className="w-4 h-4" />
+							Reports
+						</TabsTrigger>
+					</TabsList>
+					<TabsContent value="current">
+						{showEmpty ? (
+							<Card>
+								<CardContent>No group or cycle data yet.</CardContent>
+							</Card>
+						) : (
+							<CycleDashboard
+								cycle={currentCycle}
+								payments={payments.filter((p) => p.groupId === selectedGroupId)}
+								members={members.filter((m) => m.groupId === selectedGroupId)}
+								group={selectedGroup}
+								onRecordPayment={handleRecordPayment}
+								onExecutePayout={handleExecutePayout}
+							/>
+						)}
+					</TabsContent>
+					<TabsContent value="timeline">
+						{showEmpty || cycles.length === 0 ? (
+							<Card>
+								<CardContent>No timeline data yet.</CardContent>
+							</Card>
+						) : (
+							<TurnOrderTimeline
+								group={selectedGroup}
+								members={members.filter((m) => m.groupId === selectedGroupId)}
+								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+							/>
+						)}
+					</TabsContent>
+					<TabsContent value="members">
+						{showEmpty ? (
+							<Card>
+								<CardContent>No members yet.</CardContent>
+							</Card>
+						) : (
+							<MemberLedger
+								member={members.filter((m) => m.groupId === selectedGroupId)[0]}
+								payments={payments.filter((p) => p.groupId === selectedGroupId)}
+								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+								group={selectedGroup}
+							/>
+						)}
+					</TabsContent>
+					<TabsContent value="group">
+						{showEmpty ? (
+							<Card>
+								<CardContent>No group ledger data yet.</CardContent>
+							</Card>
+						) : (
+							<GroupLedger
+								group={selectedGroup}
+								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+								payments={payments.filter((p) => p.groupId === selectedGroupId)}
+								members={members.filter((m) => m.groupId === selectedGroupId)}
+							/>
+						)}
+					</TabsContent>
+					<TabsContent value="reports">
+						{showEmpty ? (
+							<Card>
+								<CardContent>No reports yet.</CardContent>
+							</Card>
+						) : (
+							<SummaryReport
+								group={selectedGroup}
+								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+								payments={payments.filter((p) => p.groupId === selectedGroupId)}
+								members={members.filter((m) => m.groupId === selectedGroupId)}
+							/>
+						)}
+					</TabsContent>
+				</Tabs>
+			</main>
+			{/* Show GroupSetup modal if currentView is setup */}
+			{currentView === "setup" && user && user.email && (
+				<div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg shadow-lg p-8">
+						<GroupSetup
+							onGroupCreated={handleGroupCreated}
+							userEmail={user.email}
+						/>
+						<Button
+							className="mt-4"
+							onClick={() => setCurrentView("dashboard")}
+						>
+							Cancel
+						</Button>
+					</div>
+				</div>
+			)}
+		</div>
+	);
 
 	return (
 		<div className="min-h-screen bg-background">
@@ -439,10 +504,12 @@ export default function App() {
 							<Button onClick={() => setShowAddCycle(true)}>Add Cycle</Button>
 						</div>
 						{showAddCycle && (
-							<CycleForm onSuccess={() => {
-								setShowAddCycle(false);
-								fetchCycles();
-							}} />
+							<CycleForm
+								onSuccess={() => {
+									setShowAddCycle(false);
+									fetchCycles();
+								}}
+							/>
 						)}
 						<div className="grid grid-cols-2 gap-4 mb-4">
 							{cycles.map((cycle) => (
@@ -465,7 +532,12 @@ export default function App() {
 							<div className="space-y-4 mt-4">
 								<div className="flex gap-2">
 									<Button onClick={() => setShowEditCycle(true)}>Edit</Button>
-									<Button variant="destructive" onClick={() => setShowEditCycle(false)}>Cancel Edit</Button>
+									<Button
+										variant="destructive"
+										onClick={() => setShowEditCycle(false)}
+									>
+										Cancel Edit
+									</Button>
 								</div>
 								{showEditCycle && (
 									<CycleEditForm
@@ -522,10 +594,12 @@ export default function App() {
 							<Button onClick={() => setShowAddMember(true)}>Add Member</Button>
 						</div>
 						{showAddMember && (
-							<MemberForm onSuccess={() => {
-								setShowAddMember(false);
-								fetchMembers();
-							}} />
+							<MemberForm
+								onSuccess={() => {
+									setShowAddMember(false);
+									fetchMembers();
+								}}
+							/>
 						)}
 						<Card>
 							<CardHeader>
@@ -572,7 +646,12 @@ export default function App() {
 								/>
 								<div className="flex gap-2">
 									<Button onClick={() => setShowEditMember(true)}>Edit</Button>
-									<Button variant="destructive" onClick={() => setShowEditMember(false)}>Cancel Edit</Button>
+									<Button
+										variant="destructive"
+										onClick={() => setShowEditMember(false)}
+									>
+										Cancel Edit
+									</Button>
 								</div>
 								{showEditMember && (
 									<MemberEditForm
@@ -598,13 +677,17 @@ export default function App() {
 					{/* Payments Tab */}
 					<TabsContent value="payments" className="space-y-6">
 						<div className="flex gap-2 mb-4">
-							<Button onClick={() => setShowAddPayment(true)}>Add Payment</Button>
+							<Button onClick={() => setShowAddPayment(true)}>
+								Add Payment
+							</Button>
 						</div>
 						{showAddPayment && (
-							<PaymentForm onSuccess={() => {
-								setShowAddPayment(false);
-								fetchPayments();
-							}} />
+							<PaymentForm
+								onSuccess={() => {
+									setShowAddPayment(false);
+									fetchPayments();
+								}}
+							/>
 						)}
 						<div className="grid grid-cols-2 gap-4 mb-4">
 							{payments.map((payment) => (
@@ -627,7 +710,12 @@ export default function App() {
 							<div className="space-y-4 mt-4">
 								<div className="flex gap-2">
 									<Button onClick={() => setShowEditPayment(true)}>Edit</Button>
-									<Button variant="destructive" onClick={() => setShowEditPayment(false)}>Cancel Edit</Button>
+									<Button
+										variant="destructive"
+										onClick={() => setShowEditPayment(false)}
+									>
+										Cancel Edit
+									</Button>
 								</div>
 								{showEditPayment && (
 									<PaymentEditForm
@@ -655,10 +743,12 @@ export default function App() {
 							<Button onClick={() => setShowAddGroup(true)}>Add Group</Button>
 						</div>
 						{showAddGroup && (
-							<GroupSetup onGroupCreated={() => {
-								setShowAddGroup(false);
-								fetchGroups();
-							}} />
+							<GroupSetup
+								onGroupCreated={() => {
+									setShowAddGroup(false);
+									fetchGroups();
+								}}
+							/>
 						)}
 						<Card>
 							<CardHeader>
@@ -673,7 +763,7 @@ export default function App() {
 										key={group?._id || group?.id}
 										className="cursor-pointer hover:bg-accent/50 transition-colors"
 										onClick={() => {
-											setSelectedGroup(group);
+											setSelectedGroupId(group.id);
 											setShowEditGroup(false);
 										}}
 									>
@@ -681,7 +771,9 @@ export default function App() {
 											<div className="flex items-start justify-between">
 												<div>
 													<CardTitle>{group?.name}</CardTitle>
-													<CardDescription>{group?.description}</CardDescription>
+													<CardDescription>
+														{group?.description}
+													</CardDescription>
 												</div>
 												<span className="capitalize text-muted-foreground">
 													{group?.currency}
@@ -697,7 +789,12 @@ export default function App() {
 							<div className="space-y-4 mt-4">
 								<div className="flex gap-2">
 									<Button onClick={() => setShowEditGroup(true)}>Edit</Button>
-									<Button variant="destructive" onClick={() => setShowEditGroup(false)}>Cancel Edit</Button>
+									<Button
+										variant="destructive"
+										onClick={() => setShowEditGroup(false)}
+									>
+										Cancel Edit
+									</Button>
 								</div>
 								{/* If you have a GroupEditForm, render it here */}
 								{/* {showEditGroup && (

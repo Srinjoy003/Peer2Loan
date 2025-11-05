@@ -71,7 +71,7 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
             if (!recipient) return null;
             const isLast = index === cyclesWithRecipient.length - 1;
             // Use a unique key: cycle.id if present, else cycle.cycleNumber, else index
-            const key = cycle.id || cycle._id || cycle.cycleNumber || index;
+              const key = cycle.id || cycle.cycleNumber || index;
             return (
               <div key={key} className="flex gap-4">
                 {/* Timeline line */}

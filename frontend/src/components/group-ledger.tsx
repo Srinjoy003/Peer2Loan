@@ -13,6 +13,33 @@ interface GroupLedgerProps {
 }
 
 export function GroupLedger2({ group, cycles, payments, members }: GroupLedgerProps) {
+  // Prepare chartData for recharts
+  const chartData = cycles.map(cycle => {
+    const cyclePayments = payments.filter(p => p.cycleId === cycle.id);
+    const paidPayments = cyclePayments.filter(p => p.status === 'paid');
+    const penalties = cyclePayments.reduce((sum, p) => sum + (p.penalty || 0), 0);
+    return {
+      month: cycle.month ? formatDate(cycle.month) : `Month ${cycle.cycleNumber}`,
+      collected: paidPayments.reduce((sum, p) => sum + p.amount, 0),
+      payout: cycle.payoutExecuted ? cycle.potTotal || paidPayments.reduce((sum, p) => sum + p.amount, 0) : 0,
+      penalties,
+    };
+  });
+
+  // Prepare cycleStats for table and variance analysis
+  const cycleStats = cycles.map(cycle => {
+    const cyclePayments = payments.filter(p => p.cycleId === cycle.id);
+    const paidPayments = cyclePayments.filter(p => p.status === 'paid');
+    const totalMembers = members.filter(m => m.role !== 'auditor').length;
+    return {
+      cycle,
+      paidCount: paidPayments.length,
+      totalMembers,
+      totalCollected: paidPayments.reduce((sum, p) => sum + p.amount, 0),
+      totalPenalties: cyclePayments.reduce((sum, p) => sum + (p.penalty || 0), 0),
+      payoutAmount: cycle.payoutExecuted ? cycle.potTotal || paidPayments.reduce((sum, p) => sum + p.amount, 0) : 0,
+    };
+  });
   if (!group || !group.rules) {
     return (
       <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
