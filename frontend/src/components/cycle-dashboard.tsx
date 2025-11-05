@@ -23,6 +23,13 @@ export function CycleDashboard({
   onRecordPayment,
   onExecutePayout,
 }: CycleDashboardProps) {
+  if (!cycle) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
+        No cycle data available.
+      </div>
+    );
+  }
   const cyclePayments = payments.filter(p => p.cycleId === cycle.id);
   const paidPayments = cyclePayments.filter(p => p.status === 'paid');
   const pendingPayments = cyclePayments.filter(p => p.status === 'pending' || p.status === 'late');

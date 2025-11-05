@@ -13,7 +13,7 @@ interface TurnOrderTimelineProps {
 
 export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineProps) {
   const contributingMembers = members.filter(m => m.role !== 'auditor');
-  
+
   const getStatusIcon = (cycle: Cycle) => {
     if (cycle.status === 'completed' && cycle.payoutExecuted) {
       return <CheckCircle2 className="w-5 h-5 text-green-600" />;
@@ -33,6 +33,29 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
       .slice(0, 2);
   };
 
+  // Filter cycles with valid payout recipient and valid recipient name
+  const cyclesWithRecipient = cycles?.filter(cycle => {
+    const recipient = members.find(m => m.id === cycle.payoutRecipientId);
+    return recipient && recipient.name && recipient.name !== 'Unknown';
+  });
+
+  if (!cyclesWithRecipient || cyclesWithRecipient.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Turn Order & Timeline</CardTitle>
+          <CardDescription>
+            Payout schedule for all members ({group.turnOrderPolicy} policy)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center min-h-[120px] text-muted-foreground">
+            No timeline data available.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader>
@@ -41,17 +64,16 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
           Payout schedule for all members ({group.turnOrderPolicy} policy)
         </CardDescription>
       </CardHeader>
-      
       <CardContent>
         <div className="space-y-4">
-          {cycles.map((cycle, index) => {
+          {cyclesWithRecipient.map((cycle, index) => {
             const recipient = members.find(m => m.id === cycle.payoutRecipientId);
             if (!recipient) return null;
-            
-            const isLast = index === cycles.length - 1;
-            
+            const isLast = index === cyclesWithRecipient.length - 1;
+            // Use a unique key: cycle.id if present, else cycle.cycleNumber, else index
+            const key = cycle.id || cycle._id || cycle.cycleNumber || index;
             return (
-              <div key={cycle.id} className="flex gap-4">
+              <div key={key} className="flex gap-4">
                 {/* Timeline line */}
                 <div className="flex flex-col items-center">
                   <div className="flex-shrink-0">
@@ -61,7 +83,6 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
                     <div className="w-0.5 h-full min-h-[60px] bg-border mt-2" />
                   )}
                 </div>
-
                 {/* Content */}
                 <div className="flex-1 pb-8">
                   <div className="flex items-start justify-between mb-2">
@@ -78,7 +99,6 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
                         </p>
                       </div>
                     </div>
-                    
                     <Badge
                       variant={
                         cycle.status === 'completed' ? 'default' :
@@ -89,7 +109,6 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
                       {cycle.status}
                     </Badge>
                   </div>
-
                   <div className="bg-muted rounded-lg p-3 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Payout Amount</span>
@@ -100,7 +119,6 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
                         }
                       </span>
                     </div>
-                    
                     {cycle.payoutExecuted && (
                       <>
                         <div className="flex justify-between">
@@ -117,19 +135,16 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
                         )}
                       </>
                     )}
-                    
                     {!cycle.payoutExecuted && cycle.status === 'active' && (
                       <div className="text-blue-600">
                         Scheduled for payout after {formatDate(cycle.deadline)}
                       </div>
                     )}
-                    
                     {cycle.status === 'upcoming' && (
                       <div className="text-muted-foreground">
                         Upcoming turn
                       </div>
                     )}
-                    
                     {cycle.notes && (
                       <div className="pt-2 border-t">
                         <p className="text-muted-foreground">{cycle.notes}</p>
@@ -141,21 +156,20 @@ export function TurnOrderTimeline({ cycles, members, group }: TurnOrderTimelineP
             );
           })}
         </div>
-
         {/* Summary */}
         <div className="mt-6 pt-6 border-t">
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-muted-foreground">Completed</p>
-              <p>{cycles.filter(c => c.status === 'completed').length}</p>
+              <p>{cyclesWithRecipient.filter(c => c.status === 'completed').length}</p>
             </div>
             <div className="text-center">
               <p className="text-muted-foreground">Active</p>
-              <p>{cycles.filter(c => c.status === 'active').length}</p>
+              <p>{cyclesWithRecipient.filter(c => c.status === 'active').length}</p>
             </div>
             <div className="text-center">
               <p className="text-muted-foreground">Upcoming</p>
-              <p>{cycles.filter(c => c.status === 'upcoming').length}</p>
+              <p>{cyclesWithRecipient.filter(c => c.status === 'upcoming').length}</p>
             </div>
           </div>
         </div>

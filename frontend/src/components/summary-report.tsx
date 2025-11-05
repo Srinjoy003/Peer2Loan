@@ -146,7 +146,7 @@ export function SummaryReport({ group, cycles, payments, members, currentCycle }
         <CardContent className="space-y-4">
           {allReports.map(report => (
             <div
-              key={report.cycle.id}
+              key={report.cycle.id || report.cycle._id || report.cycle.cycleNumber}
               className="p-4 border rounded-lg hover:bg-accent/50 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
@@ -188,7 +188,6 @@ export function SummaryReport({ group, cycles, payments, members, currentCycle }
               )}
             </div>
           ))}
-          
           {allReports.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
               No reports available yet. Reports will be generated as cycles progress.

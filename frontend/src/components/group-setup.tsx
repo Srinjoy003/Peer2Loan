@@ -7,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Group, TurnOrderPolicy } from '../types';
 import { PlusCircle } from 'lucide-react';
 
+
 interface GroupSetupProps {
   onGroupCreated: (group: Group) => void;
+  onCancel?: () => void;
 }
 
-export function GroupSetup({ onGroupCreated }: GroupSetupProps) {
+export function GroupSetup({ onGroupCreated, onCancel }: GroupSetupProps) {
   const [formData, setFormData] = useState({
     name: '',
     currency: '₹',
@@ -60,6 +62,8 @@ export function GroupSetup({ onGroupCreated }: GroupSetupProps) {
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -260,6 +264,9 @@ export function GroupSetup({ onGroupCreated }: GroupSetupProps) {
           </CardContent>
           
           <CardFooter className="flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
             <Button type="submit" className="gap-2">
               <PlusCircle className="w-4 h-4" />
               Create Group

@@ -12,113 +12,17 @@ interface GroupLedgerProps {
   members: Member[];
 }
 
-export function GroupLedger({ group, cycles, payments, members }: GroupLedgerProps) {
-  // Calculate cycle statistics
-  const cycleStats = cycles.map(cycle => {
-    const cyclePayments = payments.filter(p => p.cycleId === cycle.id);
-    const paidPayments = cyclePayments.filter(p => p.status === 'paid');
-    const totalCollected = paidPayments.reduce((sum, p) => sum + p.amount, 0);
-    const totalPenalties = cyclePayments.reduce((sum, p) => sum + p.penalty, 0);
-    const paidCount = paidPayments.length;
-    const totalMembers = members.filter(m => m.role !== 'auditor').length;
-    
-    return {
-      cycle,
-      totalCollected,
-      totalPenalties,
-      paidCount,
-      totalMembers,
-      payoutAmount: cycle.payoutExecuted ? cycle.potTotal : 0,
-    };
-  });
-
-  // Prepare chart data
-  const chartData = cycleStats.map(stat => ({
-    month: `M${stat.cycle.cycleNumber}`,
-    collected: stat.totalCollected,
-    payout: stat.payoutAmount,
-    penalties: stat.totalPenalties,
-  }));
-
-  // Overall statistics
-  const totalCollected = cycleStats.reduce((sum, s) => sum + s.totalCollected, 0);
-  const totalPayouts = cycleStats.reduce((sum, s) => sum + s.payoutAmount, 0);
-  const totalPenalties = cycleStats.reduce((sum, s) => sum + s.totalPenalties, 0);
-  const completedCycles = cycles.filter(c => c.status === 'completed').length;
-
+export function GroupLedger2({ group, cycles, payments, members }: GroupLedgerProps) {
+  if (!group || !group.rules) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
+        No group ledger data available.
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
-      {/* Group Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{group.name}</CardTitle>
-          <CardDescription>
-              {group.groupSize ?? '-'} members • {group.currency ?? ''}{typeof group.monthlyContribution === 'number' ? group.monthlyContribution.toLocaleString() : '-'} per month
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {/* Summary Stats */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Total Collected</p>
-              <p>{formatCurrency(totalCollected, group.currency)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Total Payouts</p>
-              <p className="text-green-600">{formatCurrency(totalPayouts, group.currency)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Total Penalties</p>
-              <p className="text-orange-600">{formatCurrency(totalPenalties, group.currency)}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Completed Cycles</p>
-              <p>{completedCycles} / {group.duration}</p>
-            </div>
-          </div>
-
-          {/* Group Details */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-            <div>
-              <p className="text-muted-foreground">Start Date</p>
-              <p>{group.startMonth ? formatDate(group.startMonth) : '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Payment Window</p>
-              <p>
-                Day {group.paymentWindow?.startDay ?? '-'} - {group.paymentWindow?.endDay ?? '-'}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Turn Order</p>
-              <p className="capitalize">{group.turnOrderPolicy ?? '-'}</p>
-            </div>
-          </div>
-
-          {/* Rules */}
-          <div className="grid grid-cols-4 gap-4 pt-4 border-t">
-            <div>
-              <p className="text-muted-foreground">Grace Period</p>
-              <p>{group.rules.gracePeriodDays} days</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Late Fee</p>
-              <p>{formatCurrency(group.rules.lateFeePerDay, group.currency)}/day</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Max Late Fee</p>
-              <p>{formatCurrency(group.rules.lateFeeMax, group.currency)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Quorum</p>
-              <p>{group.rules.quorumPercentage}%</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cashflow Chart */}
+        {/* Cashflow Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Cashflow Timeline</CardTitle>
@@ -248,4 +152,13 @@ export function GroupLedger({ group, cycles, payments, members }: GroupLedgerPro
       </Card>
     </div>
   );
+
 }
+
+export function GroupLedger({ group, cycles, payments, members }: GroupLedgerProps) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
+        No group ledger data available.
+      </div>
+    );
+  }
