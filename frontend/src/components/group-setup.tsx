@@ -86,7 +86,7 @@ export function GroupSetup({
 		};
 
 		try {
-			const token = localStorage.getItem("token");
+			const token = sessionStorage.getItem("token");
 			const headers = {
 				"Content-Type": "application/json",
 				...(token ? { Authorization: `Bearer ${token}` } : {}),

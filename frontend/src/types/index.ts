@@ -102,3 +102,18 @@ export interface CycleSummary {
 	potTotal: number;
 	payoutRecipient: Member;
 }
+
+export interface Invitation {
+	_id?: string;
+	id?: string;
+	groupId: string;
+	groupName?: string;
+	groupDetails?: Group;
+	inviteeEmail: string;
+	inviteeName: string;
+	role: UserRole;
+	memberData: Partial<Member>;
+	status: "pending" | "accepted" | "rejected";
+	createdAt: string;
+	respondedAt?: string;
+}

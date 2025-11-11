@@ -20,13 +20,16 @@ export function GroupDropdown({
 	onSelectGroup,
 }: GroupDropdownProps) {
 	return (
-		<Select value={selectedGroupId} onValueChange={onSelectGroup}>
+		<Select value={selectedGroupId || undefined} onValueChange={onSelectGroup}>
 			<SelectTrigger className="w-[250px]">
 				<SelectValue placeholder="Select Group" />
 			</SelectTrigger>
 			<SelectContent>
 				{groups.map((group, idx) => (
-					<SelectItem key={group.id || idx} value={group.id}>
+					<SelectItem
+						key={group.id || (group as any)._id || idx}
+						value={group.id || (group as any)._id}
+					>
 						{group.name}
 					</SelectItem>
 				))}

@@ -33,7 +33,8 @@ export default function AuthForm({ onAuth }) {
 				});
 				const data = await res.json();
 				if (!res.ok) throw new Error(data.error || "Login failed");
-				localStorage.setItem("token", data.token);
+				sessionStorage.setItem("token", data.token);
+				sessionStorage.setItem("user", JSON.stringify(data.user));
 				console.log("AuthForm onAuth user:", data.user);
 				onAuth && onAuth(data.user);
 			}
@@ -102,7 +103,7 @@ export default function AuthForm({ onAuth }) {
 						</div>
 						<button
 							type="submit"
-							className="w-full py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition disabled:opacity-60"
+							className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition disabled:opacity-60"
 							disabled={loading}
 						>
 							{loading

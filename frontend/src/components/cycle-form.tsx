@@ -1,66 +1,219 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
 
-const CycleForm = ({ onSuccess }) => {
-  const [form, setForm] = useState({
-    groupId: '',
-    cycleNumber: '',
-    targetPayoutMemberId: '',
-    payoutConfirmed: false,
-    payoutProofReferenceId: '',
-    contributions: '' // JSON string for simplicity
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+const CycleForm = ({ onSuccess, onCancel, groupId, cycles = [] }) => {
+	// Debug: Log cycles data
+	console.log("CycleForm - groupId:", groupId);
+	console.log("CycleForm - cycles received:", cycles);
+	console.log("CycleForm - cycles count:", cycles.length);
+	
+	// Log each cycle's details
+	cycles.forEach((c, idx) => {
+		console.log(`Cycle ${idx}:`, {
+			cycleNumber: c.cycleNumber,
+			groupId: c.groupId,
+			_id: c._id
+		});
+	});
+	
+	// Calculate next cycle number
+	const nextCycleNumber =
+		cycles.length > 0 ? Math.max(...cycles.map((c) => c.cycleNumber)) + 1 : 1;
+	
+	console.log("CycleForm - calculated nextCycleNumber:", nextCycleNumber);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
+	const [form, setForm] = useState({
+		cycleNumber: nextCycleNumber.toString(),
+		targetPayoutMemberId: "",
+		payoutConfirmed: false,
+		payoutProofReferenceId: "",
+	});
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/cycles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          cycleNumber: Number(form.cycleNumber),
-          contributions: form.contributions ? JSON.parse(form.contributions) : []
-        })
-      });
-      if (!res.ok) throw new Error('Failed to create cycle');
-      setForm({
-        groupId: '', cycleNumber: '', targetPayoutMemberId: '', payoutConfirmed: false, payoutProofReferenceId: '', contributions: ''
-      });
-      if (onSuccess) onSuccess();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+	// Update cycle number if cycles change
+	useEffect(() => {
+		const newCycleNumber =
+			cycles.length > 0 ? Math.max(...cycles.map((c) => c.cycleNumber)) + 1 : 1;
+		console.log("CycleForm - useEffect updating to:", newCycleNumber);
+		setForm((prev) => ({ ...prev, cycleNumber: newCycleNumber.toString() }));
+	}, [cycles]);
 
-  return (
-    <form onSubmit={handleSubmit}>
-      <input name="groupId" value={form.groupId} onChange={handleChange} placeholder="Group ID" required />
-      <input name="cycleNumber" value={form.cycleNumber} onChange={handleChange} placeholder="Cycle Number" type="number" required />
-      <input name="targetPayoutMemberId" value={form.targetPayoutMemberId} onChange={handleChange} placeholder="Target Payout Member ID" required />
-      <label>
-        <input name="payoutConfirmed" type="checkbox" checked={form.payoutConfirmed} onChange={handleChange} />
-        Payout Confirmed
-      </label>
-      <input name="payoutProofReferenceId" value={form.payoutProofReferenceId} onChange={handleChange} placeholder="Payout Proof Reference ID" />
-      <textarea name="contributions" value={form.contributions} onChange={handleChange} placeholder='Contributions (JSON array)' />
-      <button type="submit" disabled={loading}>Create Cycle</button>
-      {error && <div style={{color:'red'}}>{error}</div>}
-    </form>
-  );
+	const handleChange = (e) => {
+		const { name, value } = e.target;
+		setForm({ ...form, [name]: value });
+	};
+
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		setLoading(true);
+		setError("");
+		try {
+			const token = sessionStorage.getItem("token");
+			const headers = {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			};
+			const res = await fetch("/api/cycles", {
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					groupId,
+					cycleNumber: Number(form.cycleNumber),
+					targetPayoutMemberId: form.targetPayoutMemberId,
+					payoutConfirmed: form.payoutConfirmed,
+					payoutProofReferenceId: form.payoutProofReferenceId,
+					contributions: [],
+					status: "active",
+				}),
+			});
+
+			if (!res.ok) {
+				const errorData = await res.json();
+				throw new Error(
+					errorData.message || errorData.error || "Failed to create cycle"
+				);
+			}
+
+			toast.success("Cycle created successfully!", {
+				description: `Cycle #${form.cycleNumber} with payout to ${form.targetPayoutMemberId}`,
+			});
+
+			setForm({
+				cycleNumber: "",
+				targetPayoutMemberId: "",
+				payoutConfirmed: false,
+				payoutProofReferenceId: "",
+			});
+			if (onSuccess) onSuccess();
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Card className="border-none shadow-none">
+			<CardHeader className="space-y-1 pb-4">
+				<CardTitle>Add New Cycle</CardTitle>
+				<CardDescription>
+					Create a new cycle for your group with payout details
+				</CardDescription>
+			</CardHeader>
+
+			<form onSubmit={handleSubmit}>
+				<CardContent className="space-y-6 pb-6">
+					{error && (
+						<div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
+							{error}
+						</div>
+					)}
+
+					<div className="space-y-4">
+						<h3 className="text-lg font-medium">Cycle Information</h3>
+
+						<div className="grid grid-cols-2 gap-6">
+							<div className="space-y-2">
+								<Label htmlFor="cycleNumber">Cycle Number</Label>
+								<Input
+									id="cycleNumber"
+									name="cycleNumber"
+									type="number"
+									value={form.cycleNumber}
+									onChange={handleChange}
+									placeholder="1"
+									required
+									readOnly
+									className="bg-muted cursor-not-allowed"
+								/>
+								<p className="text-sm text-muted-foreground">
+									Auto-generated sequential cycle number
+								</p>
+							</div>{" "}
+							<div className="space-y-2">
+								<Label htmlFor="targetPayoutMemberId">
+									Target Payout Member Email
+								</Label>
+								<Input
+									id="targetPayoutMemberId"
+									name="targetPayoutMemberId"
+									type="email"
+									value={form.targetPayoutMemberId}
+									onChange={handleChange}
+									placeholder="member@example.com"
+									required
+								/>
+								<p className="text-sm text-muted-foreground">
+									Email of the member who will receive the payout this cycle
+								</p>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="payoutProofReferenceId">
+								Payout Proof Reference ID (Optional)
+							</Label>
+							<Input
+								id="payoutProofReferenceId"
+								name="payoutProofReferenceId"
+								value={form.payoutProofReferenceId}
+								onChange={handleChange}
+								placeholder="Reference ID"
+							/>
+						</div>
+
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id="payoutConfirmed"
+								checked={form.payoutConfirmed}
+								onCheckedChange={(checked) =>
+									setForm({ ...form, payoutConfirmed: checked })
+								}
+							/>
+							<Label htmlFor="payoutConfirmed" className="cursor-pointer">
+								Payout Confirmed
+							</Label>
+						</div>
+					</div>
+
+					{error && (
+						<div className="bg-destructive/10 text-destructive px-4 py-2 rounded-md">
+							{error}
+						</div>
+					)}
+				</CardContent>
+
+				<CardFooter className="flex justify-end gap-3 pt-6 pb-6">
+					{onCancel && (
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onCancel}
+							disabled={loading}
+						>
+							Cancel
+						</Button>
+					)}
+					<Button type="submit" disabled={loading}>
+						{loading ? "Creating..." : "Add Cycle"}
+					</Button>
+				</CardFooter>
+			</form>
+		</Card>
+	);
 };
 
 export default CycleForm;
