@@ -13,26 +13,19 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 
-const CycleForm = ({ onSuccess, onCancel, groupId, cycles = [] }) => {
+const CycleForm = ({
+	onSuccess,
+	onCancel,
+	groupId,
+	cycles = [],
+	members = [],
+}) => {
 	// Debug: Log cycles data
-	console.log("CycleForm - groupId:", groupId);
-	console.log("CycleForm - cycles received:", cycles);
-	console.log("CycleForm - cycles count:", cycles.length);
-	
-	// Log each cycle's details
-	cycles.forEach((c, idx) => {
-		console.log(`Cycle ${idx}:`, {
-			cycleNumber: c.cycleNumber,
-			groupId: c.groupId,
-			_id: c._id
-		});
-	});
-	
+	// debug logs removed
+
 	// Calculate next cycle number
 	const nextCycleNumber =
 		cycles.length > 0 ? Math.max(...cycles.map((c) => c.cycleNumber)) + 1 : 1;
-	
-	console.log("CycleForm - calculated nextCycleNumber:", nextCycleNumber);
 
 	const [form, setForm] = useState({
 		cycleNumber: nextCycleNumber.toString(),
@@ -47,7 +40,7 @@ const CycleForm = ({ onSuccess, onCancel, groupId, cycles = [] }) => {
 	useEffect(() => {
 		const newCycleNumber =
 			cycles.length > 0 ? Math.max(...cycles.map((c) => c.cycleNumber)) + 1 : 1;
-		console.log("CycleForm - useEffect updating to:", newCycleNumber);
+
 		setForm((prev) => ({ ...prev, cycleNumber: newCycleNumber.toString() }));
 	}, [cycles]);
 
@@ -66,19 +59,30 @@ const CycleForm = ({ onSuccess, onCancel, groupId, cycles = [] }) => {
 				"Content-Type": "application/json",
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
 			};
+			const payload = {
+				groupId,
+				cycleNumber: Number(form.cycleNumber),
+				targetPayoutMemberId: form.targetPayoutMemberId,
+				// map email to member id when possible so UI can resolve recipient immediately
+				payoutRecipientId: (
+					members.find((m) => m.email === form.targetPayoutMemberId) || {}
+				).id,
+				// Ensure dashboard date/deadline render correctly
+				month: new Date().toISOString(),
+				deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				contributions: [],
+				potTotal: 0,
+				payoutExecuted: false,
+				status: "active",
+			};
+
 			const res = await fetch("/api/cycles", {
 				method: "POST",
 				headers,
-				body: JSON.stringify({
-					groupId,
-					cycleNumber: Number(form.cycleNumber),
-					targetPayoutMemberId: form.targetPayoutMemberId,
-					payoutConfirmed: form.payoutConfirmed,
-					payoutProofReferenceId: form.payoutProofReferenceId,
-					contributions: [],
-					status: "active",
-				}),
+				body: JSON.stringify(payload),
 			});
+
+			const resBody = await res.json().catch(() => ({}));
 
 			if (!res.ok) {
 				const errorData = await res.json();

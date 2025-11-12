@@ -24,6 +24,7 @@ import { MemberLedger } from "./components/member-ledger";
 import { GroupLedger } from "./components/group-ledger";
 import { SummaryReport } from "./components/summary-report";
 import { PaymentRecorder } from "./components/payment-recorder";
+import { PaymentRequestForm } from "./components/payment-request-form";
 import { TurnOrderTimeline } from "./components/turn-order-timeline";
 // import { mockGroup, mockMembers, mockCycles, mockPayments } from './lib/mock-data';
 import { Group, Member, Cycle, Payment } from "./types";
@@ -39,6 +40,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "./components/ui/select";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "./components/ui/alert-dialog";
 import {
 	Users,
 	Calendar,
@@ -94,15 +105,40 @@ export default function App() {
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
 		const cyclesRes = await fetch("/api/cycles", { headers });
 		const cyclesData = await cyclesRes.json();
+		// debug log removed
 		setCycles(cyclesData);
 	}
 
 	async function fetchPayments() {
 		const token = sessionStorage.getItem("token");
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
-		const paymentsRes = await fetch("/api/payments", { headers });
+		const paymentsRes = await fetch("http://localhost:4000/api/payments", {
+			headers,
+		});
 		const paymentsData = await paymentsRes.json();
+		console.log("Fetched payments:", paymentsData);
+		console.log("First payment details:", paymentsData[0]);
 		setPayments(paymentsData);
+		console.log("Payments state updated");
+	}
+
+	async function fetchTransactions() {
+		if (!selectedGroupId) return;
+		try {
+			const token = sessionStorage.getItem("token");
+			const headers = token ? { Authorization: `Bearer ${token}` } : {};
+			const transactionsRes = await fetch(
+				`http://localhost:4000/api/payments/transactions/${selectedGroupId}`,
+				{ headers }
+			);
+			if (transactionsRes.ok) {
+				const transactionsData = await transactionsRes.json();
+				console.log("Fetched transactions:", transactionsData);
+				setTransactions(transactionsData);
+			}
+		} catch (err) {
+			console.error("Error fetching transactions:", err);
+		}
 	}
 	const [user, setUser] = useState(null);
 	const [currentView, setCurrentView] = useState("dashboard");
@@ -110,13 +146,20 @@ export default function App() {
 	const [members, setMembers] = useState([]);
 	const [cycles, setCycles] = useState([]);
 	const [payments, setPayments] = useState([]);
+	const [transactions, setTransactions] = useState([]);
 	const [selectedMember, setSelectedMember] = useState(null);
 	const [showAddMember, setShowAddMember] = useState(false);
 	const [showEditMember, setShowEditMember] = useState(false);
 	const [paymentRecorderOpen, setPaymentRecorderOpen] = useState(false);
 	const [selectedPayment, setSelectedPayment] = useState(null);
+	const [showMakePayment, setShowMakePayment] = useState(false);
 	const [showNotifications, setShowNotifications] = useState(false);
 	const [notificationCount, setNotificationCount] = useState(0);
+	const [showPayoutConfirm, setShowPayoutConfirm] = useState(false);
+	const [payoutDetails, setPayoutDetails] = useState<{
+		recipient: Member | undefined;
+		amount: number;
+	} | null>(null);
 
 	// Restore user from sessionStorage on mount
 	useEffect(() => {
@@ -170,19 +213,24 @@ export default function App() {
 			try {
 				const token = sessionStorage.getItem("token");
 				const headers = token ? { Authorization: `Bearer ${token}` } : {};
-				const [groupRes, membersRes, cyclesRes] = await Promise.all([
-					fetch("/api/groups", { headers }),
-					fetch("/api/members", { headers }),
-					fetch("/api/cycles", { headers }),
-				]);
+				const [groupRes, membersRes, cyclesRes, paymentsRes] =
+					await Promise.all([
+						fetch("/api/groups", { headers }),
+						fetch("/api/members", { headers }),
+						fetch("/api/cycles", { headers }),
+						fetch("http://localhost:4000/api/payments", { headers }),
+					]);
 				if (!groupRes.ok) throw new Error("Failed to fetch groups");
 				if (!membersRes.ok) throw new Error("Failed to fetch members");
 				if (!cyclesRes.ok) throw new Error("Failed to fetch cycles");
+				if (!paymentsRes.ok) throw new Error("Failed to fetch payments");
 				const groupData = await groupRes.json();
 				const membersData = await membersRes.json();
 				const cyclesData = await cyclesRes.json();
+				const paymentsData = await paymentsRes.json();
 
 				console.log("fetchAll - received groups:", groupData);
+				console.log("fetchAll - received payments:", paymentsData);
 
 				// Backend already filters groups, no need to filter again
 				setGroup(Array.isArray(groupData) ? groupData : []);
@@ -193,16 +241,7 @@ export default function App() {
 				}
 				setMembers(membersData);
 				setCycles(cyclesData);
-				// Flatten all contributions from cycles into a payments array
-				const allPayments = cyclesData.flatMap((cycle: any) =>
-					(cycle.contributions || []).map((contribution: any) => ({
-						...contribution,
-						cycleId: cycle.id,
-						status: contribution.hasPaid ? "paid" : "pending",
-						amount: groupData?.monthlyAmount,
-					}))
-				);
-				setPayments(allPayments);
+				setPayments(paymentsData);
 			} catch (err) {
 				setError(err.message);
 			} finally {
@@ -236,6 +275,8 @@ export default function App() {
 			} else {
 				setSelectedMember(null);
 			}
+			// Fetch transactions when group changes
+			fetchTransactions();
 		} else {
 			setSelectedMember(null);
 		}
@@ -299,33 +340,87 @@ export default function App() {
 		);
 	};
 
-	const handleExecutePayout = () => {
+	const handleExecutePayout = async () => {
 		if (!currentCycle) return;
 
-		const confirmed = window.confirm(
-			`Execute payout of ${formatCurrency(
-				currentCycle.potTotal,
-				group.currency
-			)} to ${
-				members.find((m) => m.id === currentCycle.payoutRecipientId)?.name
-			}?`
+		const recipient = members.find(
+			(m) => m.id === currentCycle.payoutRecipientId
 		);
 
-		if (confirmed) {
+		// Calculate pot total from paid payments
+		const paidPayments = payments.filter(
+			(p) => p.cycleId === currentCycle.id && p.status === "paid"
+		);
+		const potTotal = paidPayments.reduce(
+			(sum, p) => sum + p.amount + (p.penalty || 0),
+			0
+		);
+
+		// Show confirmation modal
+		setPayoutDetails({ recipient, amount: potTotal });
+		setShowPayoutConfirm(true);
+	};
+
+	const confirmExecutePayout = async () => {
+		if (!currentCycle || !payoutDetails || !selectedGroup) return;
+
+		try {
+			const token = sessionStorage.getItem("token");
+			const response = await fetch(
+				`http://localhost:4000/api/cycles/${currentCycle.id}/execute-payout`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						groupId: selectedGroup.id || (selectedGroup as any)._id,
+						proof: `TXN-${Date.now()}`, // Optional: Add proof/receipt
+					}),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || "Failed to execute payout");
+			}
+
+			const result = await response.json();
+
+			// Update local state
 			setCycles((prev) =>
 				prev.map((c) =>
 					c.id === currentCycle.id
 						? {
 								...c,
 								payoutExecuted: true,
-								payoutExecutedAt: new Date().toISOString(),
-								payoutProof: `TXN-${Date.now()}`,
+								payoutExecutedAt: result.executedAt,
+								potTotal: result.potTotal,
 								status: "completed" as const,
 						  }
 						: c
 				)
 			);
-			alert("Payout executed successfully!");
+
+			// Close modal
+			setShowPayoutConfirm(false);
+			setPayoutDetails(null);
+
+			alert(
+				`✅ Payout executed successfully!\n\nAmount: ${formatCurrency(
+					result.potTotal,
+					group.currency
+				)}\nRecipient: ${payoutDetails.recipient?.name}`
+			);
+
+			// Refresh cycles to get updated data
+			await fetchCycles();
+		} catch (error: any) {
+			console.error("Error executing payout:", error);
+			alert(`❌ Failed to execute payout: ${error.message}`);
+			setShowPayoutConfirm(false);
+			setPayoutDetails(null);
 		}
 	};
 
@@ -457,6 +552,10 @@ export default function App() {
 							<FileText className="w-4 h-4" />
 							Reports
 						</TabsTrigger>
+						<TabsTrigger value="my-ledger" className="gap-2">
+							<Users className="w-4 h-4" />
+							My Ledger
+						</TabsTrigger>
 					</TabsList>
 					<TabsContent value="current">
 						{showEmpty ? (
@@ -475,9 +574,47 @@ export default function App() {
 											<PlusCircle className="w-4 h-4 mr-2" />
 											Add New Cycle
 										</Button>
-										<Button onClick={() => setShowAddPayment(true)}>
+										<Button
+											onClick={() => {
+												// Find first pending approval payment to open verification modal
+												const pendingPayment = payments.find(
+													(p) =>
+														p.groupId === selectedGroupId &&
+														p.cycleId === currentCycle?.id &&
+														p.status === "pending_approval"
+												);
+
+												// Always open modal, even if no pending payments
+												if (pendingPayment) {
+													const member = members.find(
+														(m) => m.id === pendingPayment.memberId
+													);
+													if (member) {
+														setSelectedMember(member);
+														setSelectedPayment(pendingPayment);
+													}
+												} else {
+													// Set dummy member and payment to open modal
+													const firstMember = members.find(
+														(m) => m.groupId === selectedGroupId
+													);
+													const dummyPayment = {
+														id: "dummy",
+														memberId: firstMember?.id || "",
+														cycleId: currentCycle?.id || "",
+														groupId: selectedGroupId,
+														amount: 0,
+														status: "pending" as const,
+														penalty: 0,
+													};
+													setSelectedMember(firstMember || null);
+													setSelectedPayment(dummyPayment as any);
+												}
+												setPaymentRecorderOpen(true);
+											}}
+										>
 											<PlusCircle className="w-4 h-4 mr-2" />
-											Record Payment
+											Verify Payments
 										</Button>
 									</div>
 								)}
@@ -488,8 +625,11 @@ export default function App() {
 									)}
 									members={members.filter((m) => m.groupId === selectedGroupId)}
 									group={selectedGroup}
+									isAdmin={isAdmin}
+									currentUserEmail={user?.email || ""}
 									onRecordPayment={handleRecordPayment}
 									onExecutePayout={handleExecutePayout}
+									onMakePayment={() => setShowMakePayment(true)}
 								/>
 							</div>
 						)}
@@ -639,6 +779,8 @@ export default function App() {
 								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
 								payments={payments.filter((p) => p.groupId === selectedGroupId)}
 								members={members.filter((m) => m.groupId === selectedGroupId)}
+								transactions={transactions}
+								adminName={user?.name || user?.email}
 							/>
 						)}
 					</TabsContent>
@@ -657,7 +799,43 @@ export default function App() {
 								cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
 								payments={payments.filter((p) => p.groupId === selectedGroupId)}
 								members={members.filter((m) => m.groupId === selectedGroupId)}
+								transactions={transactions}
 							/>
+						)}
+					</TabsContent>
+					<TabsContent value="my-ledger">
+						{showEmpty ? (
+							<Card>
+								<CardContent className="p-6">
+									<p className="text-muted-foreground">
+										You are not part of any group.
+									</p>
+								</CardContent>
+							</Card>
+						) : (
+							(() => {
+								const currentUserMember = members.find(
+									(m) => m.email === user?.email && m.groupId === selectedGroupId
+								);
+								return currentUserMember ? (
+									<MemberLedger
+										member={currentUserMember}
+										payments={payments.filter(
+											(p) => p.groupId === selectedGroupId
+										)}
+										cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+										group={selectedGroup}
+									/>
+								) : (
+									<Card>
+										<CardContent className="p-6">
+											<p className="text-muted-foreground">
+												You are not a member of this group.
+											</p>
+										</CardContent>
+									</Card>
+								);
+							})()
 						)}
 					</TabsContent>
 				</Tabs>
@@ -680,10 +858,11 @@ export default function App() {
 			{showAddCycle && (
 				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 					<div className="bg-background rounded-lg shadow-xl max-w-3xl max-h-[90vh] overflow-y-auto">
-					<CycleForm
-						groupId={selectedGroupId}
-						cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
-						onSuccess={() => {
+						<CycleForm
+							groupId={selectedGroupId}
+							cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+							members={members.filter((m) => m.groupId === selectedGroupId)}
+							onSuccess={() => {
 								setShowAddCycle(false);
 								fetchCycles();
 							}}
@@ -812,6 +991,101 @@ export default function App() {
 					}}
 				/>
 			)}
+			{/* Payment Recorder Modal (Admin) */}
+			{paymentRecorderOpen &&
+				selectedMember &&
+				selectedPayment &&
+				currentCycle && (
+					<PaymentRecorder
+						open={paymentRecorderOpen}
+						onClose={() => {
+							setPaymentRecorderOpen(false);
+							setSelectedMember(null);
+							setSelectedPayment(null);
+						}}
+						member={selectedMember}
+						payment={selectedPayment}
+						group={selectedGroup}
+						cycleId={currentCycle.id}
+						members={members.filter((m) => m.groupId === selectedGroupId)}
+						payments={payments.filter((p) => p.groupId === selectedGroupId)}
+						onPaymentRecorded={handlePaymentRecorded}
+						onPaymentsUpdated={fetchPayments}
+					/>
+				)}
+			{/* Make Payment Modal (Non-Admin Members) */}
+			{showMakePayment && currentCycle && user && (
+				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+					<div className="bg-background rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+						<PaymentRequestForm
+							cycleId={currentCycle.id}
+							memberId={
+								members.find(
+									(m) => m.email === user.email && m.groupId === selectedGroupId
+								)?.id || ""
+							}
+							memberName={
+								members.find(
+									(m) => m.email === user.email && m.groupId === selectedGroupId
+								)?.name || user.email
+							}
+							expectedAmount={selectedGroup?.monthlyContribution || 0}
+							currency={selectedGroup?.currency || "USD"}
+							onSuccess={() => {
+								setShowMakePayment(false);
+								fetchPayments();
+							}}
+							onCancel={() => setShowMakePayment(false)}
+						/>
+					</div>
+				</div>
+			)}
+			{/* Execute Payout Confirmation Modal */}
+			<AlertDialog open={showPayoutConfirm} onOpenChange={setShowPayoutConfirm}>
+				<AlertDialogContent className="p-6">
+					<AlertDialogHeader className="mb-4">
+						<AlertDialogTitle>Confirm Payout Execution</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone. Please verify the details below.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<div className="space-y-8 py-8 px-4">
+						<div className="flex justify-between items-center gap-8">
+							<p className="text-sm font-medium text-muted-foreground">
+								Recipient:
+							</p>
+							<p className="text-lg font-bold">
+								{payoutDetails?.recipient?.name}
+							</p>
+						</div>
+						<div className="flex justify-between items-center gap-8">
+							<p className="text-sm font-medium text-muted-foreground">
+								Amount:
+							</p>
+							<p className="text-2xl font-bold text-green-600">
+								{formatCurrency(
+									payoutDetails?.amount || 0,
+									selectedGroup?.currency || "INR"
+								)}
+							</p>
+						</div>
+					</div>
+					<AlertDialogFooter className="mt-4 gap-3">
+						<AlertDialogCancel
+							onClick={() => {
+								setShowPayoutConfirm(false);
+								setPayoutDetails(null);
+							}}
+							className="h-9"
+						>
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmExecutePayout} className="h-9">
+							Confirm Payout
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 			<Toaster />
 		</div>
 	);
