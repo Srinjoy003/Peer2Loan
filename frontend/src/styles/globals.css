@@ -30,6 +30,9 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  --chart-green-1: #22c55e;
+  --chart-green-2: #16a34a;
+  --chart-green-3: #15803d;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -68,6 +71,9 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  --chart-green-1: #166534;
+  --chart-green-2: #14532d;
+  --chart-green-3: #052e16;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -186,4 +192,38 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* Custom scrollbar styles for light and dark mode */
+:root {
+  --scrollbar-thumb: rgba(113, 113, 130, 0.3);
+  --scrollbar-thumb-hover: rgba(113, 113, 130, 0.5);
+}
+
+.dark {
+  --scrollbar-thumb: rgba(180, 180, 192, 0.3);
+  --scrollbar-thumb-hover: rgba(180, 180, 192, 0.5);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }

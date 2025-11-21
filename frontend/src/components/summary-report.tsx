@@ -9,7 +9,9 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Group, Cycle, Payment, Member, Transaction } from "../types";
 import { generateCycleSummary, formatCurrency, formatDate } from "../lib/utils";
-import { FileText, Download, Mail } from "lucide-react";
+import { FileText, Download, Activity } from "lucide-react";
+import { ActivityLogsModal } from "./activity-logs-modal";
+import { useState } from "react";
 
 interface SummaryReportProps {
 	group: Group;
@@ -28,6 +30,7 @@ export function SummaryReport({
 	transactions = [],
 	currentCycle,
 }: SummaryReportProps) {
+	const [showActivityLogs, setShowActivityLogs] = useState(false);
 	const activeCycle = currentCycle || cycles.find((c) => c.status === "active");
 
 	// Calculate statistics
@@ -255,9 +258,14 @@ export function SummaryReport({
 						</p>
 
 						<div className="flex gap-2 mt-4 pt-4 border-t border-blue-200">
-							<Button variant="outline" size="sm" className="gap-2">
-								<Mail className="w-4 h-4" />
-								Email to Members
+							<Button
+								variant="outline"
+								size="sm"
+								className="gap-2"
+								onClick={() => setShowActivityLogs(true)}
+							>
+								<Activity className="w-4 h-4" />
+								Activity Logs
 							</Button>
 						</div>
 					</CardContent>
@@ -285,11 +293,11 @@ export function SummaryReport({
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={handleSendEmail}
+								onClick={() => setShowActivityLogs(true)}
 								className="gap-2"
 							>
-								<Mail className="w-4 h-4" />
-								Email Report
+								<Activity className="w-4 h-4" />
+								Activity Logs
 							</Button>
 						</div>
 					</div>
@@ -436,6 +444,13 @@ export function SummaryReport({
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Activity Logs Modal */}
+			<ActivityLogsModal
+				groupId={group.id || ""}
+				open={showActivityLogs}
+				onClose={() => setShowActivityLogs(false)}
+			/>
 		</div>
 	);
 }

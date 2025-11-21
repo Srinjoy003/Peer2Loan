@@ -56,8 +56,34 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 				message: `Cycle number must be ${expectedNumber} (next in sequence). ${currentCycleMessage}.`,
 			});
 		}
-		// Validate that targetPayoutMemberId (email) exists as a member in this group and map to recipient id when possible
+		// Automatically determine next payout recipient based on fixed order
 		let payoutRecipientId = req.body.payoutRecipientId;
+
+		// Get all contributing members (exclude auditors)
+		const contributingMembers = await db
+			.collection("members")
+			.find({ groupId: groupId, role: { $ne: "auditor" } })
+			.sort({ joinedAt: 1 })
+			.toArray();
+
+		if (contributingMembers.length === 0) {
+			return res.status(400).json({
+				error: "No contributing members",
+				message: "Cannot create cycle without contributing members.",
+			});
+		}
+
+		// Get all executed payouts for this group
+		const executedCycles = await db
+			.collection("cycles")
+			.find({ groupId: groupId, payoutExecuted: true })
+			.toArray();
+
+		const executedPayoutIds = executedCycles.map((c) =>
+			c.payoutRecipientId ? c.payoutRecipientId.toString() : null
+		);
+
+		// If targetPayoutMemberId is provided, validate and use it
 		if (targetPayoutMemberId) {
 			const member = await db.collection("members").findOne({
 				groupId: groupId,
@@ -70,9 +96,42 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 					message: `No member with email ${targetPayoutMemberId} exists in this group.`,
 				});
 			}
-			payoutRecipientId = member._id
-				? member._id.toString()
-				: payoutRecipientId;
+			payoutRecipientId = member._id.toString();
+		} else {
+			// Automatically determine next recipient based on policy
+			let nextRecipient = null;
+
+			if (group.turnOrderPolicy === 'randomized') {
+				// Randomized: select randomly from members who haven't received yet
+				const remainingMembers = contributingMembers.filter(member => 
+					!executedPayoutIds.includes(member._id.toString())
+				);
+
+				// If everyone has received, start new round with all members
+				const eligibleMembers = remainingMembers.length > 0 
+					? remainingMembers 
+					: contributingMembers;
+
+				// Pick random member
+				const randomIndex = Math.floor(Math.random() * eligibleMembers.length);
+				nextRecipient = eligibleMembers[randomIndex];
+			} else {
+				// Fixed order (default): Find the first member who hasn't received a payout yet
+				for (const member of contributingMembers) {
+					const memberId = member._id.toString();
+					if (!executedPayoutIds.includes(memberId)) {
+						nextRecipient = member;
+						break;
+					}
+				}
+
+				// If everyone has received, start new round with first member
+				if (!nextRecipient) {
+					nextRecipient = contributingMembers[0];
+				}
+			}
+
+			payoutRecipientId = nextRecipient._id.toString();
 		}
 
 		// Compute expected month from group's startMonth and interval
@@ -98,14 +157,14 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 
 		const id = await Cycle.createCycle(cycleData);
 
-		// Automatically create payment records for all members in the group
-		const members = await db
+		// Automatically create payment records for contributing members only (exclude auditors)
+		const membersForPayments = await db
 			.collection("members")
-			.find({ groupId: groupId })
+			.find({ groupId: groupId, role: { $ne: "auditor" } })
 			.toArray();
 
-		if (members.length > 0) {
-			const paymentRecords = members.map((member) => ({
+		if (membersForPayments.length > 0) {
+			const paymentRecords = membersForPayments.map((member) => ({
 				cycleId: id, // Store as ObjectId
 				memberId: member._id, // Store as ObjectId (not string)
 				groupId: groupId,

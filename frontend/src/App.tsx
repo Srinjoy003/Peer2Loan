@@ -26,6 +26,7 @@ import { SummaryReport } from "./components/summary-report";
 import { PaymentRecorder } from "./components/payment-recorder";
 import { PaymentRequestForm } from "./components/payment-request-form";
 import { TurnOrderTimeline } from "./components/turn-order-timeline";
+import { NextPayoutCard } from "./components/next-payout-card";
 // import { mockGroup, mockMembers, mockCycles, mockPayments } from './lib/mock-data';
 import { Group, Member, Cycle, Payment } from "./types";
 import { GroupDropdown } from "./components/group-dropdown";
@@ -568,6 +569,11 @@ export default function App() {
 							</Card>
 						) : (
 							<div className="space-y-4">
+								<NextPayoutCard
+									cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
+									members={members.filter((m) => m.groupId === selectedGroupId)}
+									group={selectedGroup}
+								/>
 								{isAdmin && (
 									<div className="flex justify-end gap-2">
 										<Button onClick={() => setShowAddCycle(true)}>
@@ -815,7 +821,8 @@ export default function App() {
 						) : (
 							(() => {
 								const currentUserMember = members.find(
-									(m) => m.email === user?.email && m.groupId === selectedGroupId
+									(m) =>
+										m.email === user?.email && m.groupId === selectedGroupId
 								);
 								return currentUserMember ? (
 									<MemberLedger
@@ -860,6 +867,7 @@ export default function App() {
 					<div className="bg-background rounded-lg shadow-xl max-w-3xl max-h-[90vh] overflow-y-auto">
 						<CycleForm
 							groupId={selectedGroupId}
+							group={group}
 							cycles={cycles.filter((c) => c.groupId === selectedGroupId)}
 							members={members.filter((m) => m.groupId === selectedGroupId)}
 							onSuccess={() => {

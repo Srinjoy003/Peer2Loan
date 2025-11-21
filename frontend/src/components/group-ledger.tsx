@@ -44,6 +44,14 @@ export function GroupLedger2({
 	transactions = [],
 	adminName,
 }: GroupLedgerProps) {
+	// Get theme-aware colors
+	const isDark = document.documentElement.classList.contains("dark");
+	const greenColors = {
+		collected: isDark ? "#166534" : "#22c55e",
+		payout: isDark ? "#14532d" : "#16a34a",
+		penalties: isDark ? "#052e16" : "#15803d",
+	};
+
 	// Prepare chartData for recharts
 	const chartData = cycles.map((cycle) => {
 		const cyclePayments = payments.filter((p) => p.cycleId === cycle.id);
@@ -111,16 +119,16 @@ export function GroupLedger2({
 									formatCurrency(value, group.currency)
 								}
 							/>
-							<Legend />
+							<Legend iconType="square" wrapperStyle={{ color: 'inherit' }} />
 							<Bar
 								dataKey="collected"
-								fill="hsl(var(--chart-1))"
+								fill={greenColors.collected}
 								name="Collected"
 							/>
-							<Bar dataKey="payout" fill="hsl(var(--chart-2))" name="Payout" />
+							<Bar dataKey="payout" fill={greenColors.payout} name="Payout" />
 							<Bar
 								dataKey="penalties"
-								fill="hsl(var(--chart-3))"
+								fill={greenColors.penalties}
 								name="Penalties"
 							/>
 						</BarChart>
@@ -275,6 +283,14 @@ export function GroupLedger({
 	transactions = [],
 	adminName,
 }: GroupLedgerProps) {
+	// Get theme-aware colors
+	const isDark = document.documentElement.classList.contains("dark");
+	const greenColors = {
+		collected: isDark ? "#166534" : "#22c55e",
+		payout: isDark ? "#14532d" : "#16a34a",
+		penalties: isDark ? "#991b1b" : "#ef4444",
+	};
+
 	// Calculate cycle statistics
 	const cycleStats = cycles.map((cycle) => {
 		const cyclePayments = payments.filter((p) => p.cycleId === cycle.id);
@@ -497,16 +513,16 @@ export function GroupLedger({
 								}}
 								cursor={{ fill: "rgba(200, 200, 200, 0.2)" }}
 							/>
-							<Legend />
+							<Legend iconType="square" wrapperStyle={{ color: 'inherit' }} />
 							<Bar
 								dataKey="collected"
-								fill="hsl(var(--chart-1))"
+								fill={greenColors.collected}
 								name="Collected"
 							/>
-							<Bar dataKey="payout" fill="hsl(var(--chart-2))" name="Payout" />
+							<Bar dataKey="payout" fill={greenColors.payout} name="Payout" />
 							<Bar
 								dataKey="penalties"
-								fill="hsl(var(--chart-3))"
+								fill={greenColors.penalties}
 								name="Penalties"
 							/>
 						</BarChart>

@@ -107,16 +107,22 @@ export function CycleDashboard({
 		}
 	};
 
+	// Filter out auditors from members list
+	const contributingMembers = members.filter((m) => m.role !== "auditor");
+	const contributingMemberIds = contributingMembers.map((m) => m.id);
+
 	const paidPayments = cyclePayments.filter((p) => p.status === "paid");
 	const pendingPayments = cyclePayments.filter(
-		(p) => p.status === "pending" || p.status === "late"
+		(p) =>
+			(p.status === "pending" || p.status === "late") &&
+			contributingMemberIds.includes(p.memberId)
 	);
 	const pendingApprovalPayments = cyclePayments.filter(
 		(p) => p.status === "pending_approval"
 	);
 
 	const paidCount = paidPayments.length;
-	const totalCount = members.filter((m) => m.role !== "auditor").length;
+	const totalCount = contributingMembers.length;
 	const progressPercentage = (paidCount / totalCount) * 100;
 
 	const potTotal = paidPayments.reduce((sum, p) => sum + p.amount, 0);

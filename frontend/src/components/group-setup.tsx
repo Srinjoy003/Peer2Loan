@@ -329,9 +329,6 @@ export function GroupSetup({
 									<SelectContent>
 										<SelectItem value="fixed">Fixed (Join Order)</SelectItem>
 										<SelectItem value="randomized">Randomized</SelectItem>
-										<SelectItem value="rule-based">
-											Rule-Based (Admin Approval)
-										</SelectItem>
 									</SelectContent>
 								</Select>
 								<p className="text-muted-foreground">
@@ -339,8 +336,6 @@ export function GroupSetup({
 										"Members receive payout in the order they joined"}
 									{formData.turnOrderPolicy === "randomized" &&
 										"Random turn assignment at group creation"}
-									{formData.turnOrderPolicy === "rule-based" &&
-										"Admin assigns turns based on need/rules"}
 								</p>
 							</div>
 						</div>
