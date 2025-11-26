@@ -119,8 +119,10 @@ router.post("/:id/accept", async (req, res) => {
 
 		// Get the actual user's name from the users collection
 		const db = getDB();
-		const user = await db.collection("users").findOne({ email: invitation.inviteeEmail });
-		
+		const user = await db
+			.collection("users")
+			.findOne({ email: invitation.inviteeEmail });
+
 		// Create the member from the stored memberData
 		const memberData = {
 			...invitation.memberData,
@@ -131,7 +133,7 @@ router.post("/:id/accept", async (req, res) => {
 		};
 
 		const memberId = await Member.createMember(memberData);
-		
+
 		// If there's an active cycle, create a payment record for the new member
 		const activeCycle = await db.collection("cycles").findOne({
 			groupId: invitation.groupId,

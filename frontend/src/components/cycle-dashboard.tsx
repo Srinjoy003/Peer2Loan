@@ -198,12 +198,10 @@ export function CycleDashboard({
 			rejected: "destructive",
 		};
 
-		const labels: Record<string, string> = {
-			pending_approval: "Pending Approval",
-			rejected: "Rejected",
-		};
-
-		return (
+	const labels: Record<string, string> = {
+		pending_approval: "Awaiting Approval",
+		rejected: "Rejected",
+	};		return (
 			<Badge variant={variants[effectiveStatus] || "outline"}>
 				{labels[effectiveStatus] || effectiveStatus}
 			</Badge>
@@ -527,30 +525,31 @@ export function CycleDashboard({
 														onClick={async () => {
 															try {
 																const token = sessionStorage.getItem("token");
-																const response = await fetch(
-																	"/api/payments",
-																	{
-																		method: "POST",
-																		headers: {
-																			"Content-Type": "application/json",
-																			Authorization: `Bearer ${token}`,
-																		},
-																		body: JSON.stringify({
-																			cycleId: cycle.id,
-																			memberId: member.id,
-																			groupId: group.id,
-																			amount: group.monthlyContribution,
-																			status: "pending",
-																			penalty: 0,
-																		}),
-																	}
-																);
+																const response = await fetch("/api/payments", {
+																	method: "POST",
+																	headers: {
+																		"Content-Type": "application/json",
+																		Authorization: `Bearer ${token}`,
+																	},
+																	body: JSON.stringify({
+																		cycleId: cycle.id,
+																		memberId: member.id,
+																		groupId: group.id,
+																		amount: group.monthlyContribution,
+																		status: "pending",
+																		penalty: 0,
+																	}),
+																});
 
 																if (!response.ok) {
-																	throw new Error("Failed to create payment record");
+																	throw new Error(
+																		"Failed to create payment record"
+																	);
 																}
 
-																toast.success("Payment record created successfully");
+																toast.success(
+																	"Payment record created successfully"
+																);
 																onPaymentsUpdated();
 															} catch (error) {
 																toast.error("Failed to create payment record");
@@ -591,11 +590,9 @@ export function CycleDashboard({
 												</span>
 											)}
 
-											<div className="w-24">
-												{getStatusBadge(payment.status, payment)}
-											</div>
-
-											{payment.status !== "paid" &&
+							<div className="w-32 shrink-0">
+								{getStatusBadge(payment.status, payment)}
+							</div>											{payment.status !== "paid" &&
 												!isAdmin &&
 												member.email === currentUserEmail &&
 												onMakePayment && (

@@ -27,9 +27,7 @@ async function fixMemberNames() {
 			if (user) {
 				// Check if name needs updating
 				if (member.name !== user.name) {
-					console.log(
-						`\nUpdating member: ${member.email}`
-					);
+					console.log(`\nUpdating member: ${member.email}`);
 					console.log(`  Old name: ${member.name}`);
 					console.log(`  New name: ${user.name}`);
 
@@ -53,7 +51,11 @@ async function fixMemberNames() {
 
 		console.log(`\n✅ Update complete!`);
 		console.log(`   Updated: ${updatedCount} members`);
-		console.log(`   Already correct: ${members.length - updatedCount - notFoundCount} members`);
+		console.log(
+			`   Already correct: ${
+				members.length - updatedCount - notFoundCount
+			} members`
+		);
 		console.log(`   No user found: ${notFoundCount} members`);
 	} catch (error) {
 		console.error("Error during update:", error);
