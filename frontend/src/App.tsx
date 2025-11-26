@@ -34,6 +34,7 @@ import { formatCurrency } from "./lib/utils";
 import { ThemeToggle } from "./components/theme-toggle";
 import { NotificationsModal } from "./components/notifications-modal";
 import { Toaster } from "./components/ui/sonner";
+import { Badge } from "./components/ui/badge";
 import {
 	Select,
 	SelectContent,
@@ -75,17 +76,12 @@ export default function App() {
 			if (!groupRes.ok) throw new Error("Failed to fetch groups");
 			const groupData = await groupRes.json();
 
-			console.log("Fetched groups:", groupData);
-			console.log("Groups length:", groupData.length);
-
 			// Set groups array
 			setGroup(Array.isArray(groupData) ? groupData : []);
 
 			if (Array.isArray(groupData) && groupData.length > 0) {
-				console.log("Setting first group:", groupData[0]);
 				setSelectedGroupId(groupData[0].id || groupData[0]._id);
 			} else {
-				console.log("No groups, setting empty");
 				setSelectedGroupId("");
 			}
 		} catch (err) {
@@ -117,10 +113,7 @@ export default function App() {
 			headers,
 		});
 		const paymentsData = await paymentsRes.json();
-		console.log("Fetched payments:", paymentsData);
-		console.log("First payment details:", paymentsData[0]);
 		setPayments(paymentsData);
-		console.log("Payments state updated");
 	}
 
 	async function fetchTransactions() {
@@ -134,7 +127,6 @@ export default function App() {
 			);
 			if (transactionsRes.ok) {
 				const transactionsData = await transactionsRes.json();
-				console.log("Fetched transactions:", transactionsData);
 				setTransactions(transactionsData);
 			}
 		} catch (err) {
@@ -487,23 +479,22 @@ export default function App() {
 						</div>
 						<div className="flex items-center gap-4">
 							<ThemeToggle />
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									setShowNotifications(true);
-									fetchNotificationCount(); // Refresh count when opening
-								}}
-								className="gap-2 relative"
-							>
-								<Bell className="w-4 h-4" />
-								Notifications
+							<div className="relative inline-block">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setShowNotifications(true);
+										fetchNotificationCount(); // Refresh count when opening
+									}}
+								>
+									<Bell className="w-4 h-4 mr-2" />
+									Notifications
+								</Button>
 								{notificationCount > 0 && (
-									<span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-										{notificationCount}
-									</span>
+									<span className="absolute -top-2 -right-2 h-4 w-4 bg-red-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
 								)}
-							</Button>
+							</div>
 							<div className="text-right">
 								<p className="text-muted-foreground">Logged in as</p>
 								<p>{user?.name}</p>
@@ -575,8 +566,11 @@ export default function App() {
 									group={selectedGroup}
 								/>
 								{isAdmin && (
-									<div className="flex justify-end gap-2">
-										<Button onClick={() => setShowAddCycle(true)}>
+									<div className="flex justify-end gap-2 overflow-visible">
+										<Button
+											onClick={() => setShowAddCycle(true)}
+											disabled={!!currentCycle}
+										>
 											<PlusCircle className="w-4 h-4 mr-2" />
 											Add New Cycle
 										</Button>
@@ -622,6 +616,14 @@ export default function App() {
 											<PlusCircle className="w-4 h-4 mr-2" />
 											Verify Payments
 										</Button>
+										{payments.filter(
+											(p) =>
+												p.groupId === selectedGroupId &&
+												p.cycleId === currentCycle?.id &&
+												p.status === "pending_approval"
+										).length > 0 && (
+											<span className="absolute -top-2 -right-2 h-4 w-4 bg-red-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+										)}
 									</div>
 								)}
 								<CycleDashboard
@@ -636,6 +638,7 @@ export default function App() {
 									onRecordPayment={handleRecordPayment}
 									onExecutePayout={handleExecutePayout}
 									onMakePayment={() => setShowMakePayment(true)}
+									onPaymentsUpdated={fetchPayments}
 								/>
 							</div>
 						)}
@@ -663,7 +666,10 @@ export default function App() {
 						) : (
 							<div className="space-y-4">
 								<div className="flex justify-end">
-									<Button onClick={() => setShowAddCycle(true)}>
+									<Button
+										onClick={() => setShowAddCycle(true)}
+										disabled={!!currentCycle}
+									>
 										<PlusCircle className="w-4 h-4 mr-2" />
 										Add New Cycle
 									</Button>
@@ -856,6 +862,7 @@ export default function App() {
 							onSuccess={() => {
 								setShowAddMember(false);
 								fetchMembers();
+								fetchPayments(); // Refresh payments as well since a payment record is created for active cycles
 							}}
 							onCancel={() => setShowAddMember(false)}
 						/>
@@ -881,7 +888,7 @@ export default function App() {
 			)}{" "}
 			{showAddPayment && (
 				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-					<div className="bg-background rounded-lg shadow-xl max-w-4xl max-h-[90vh] overflow-y-auto">
+					<div className="bg-background rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
 						<PaymentForm
 							groupId={selectedGroupId}
 							onSuccess={() => {
@@ -1024,7 +1031,7 @@ export default function App() {
 			{/* Make Payment Modal (Non-Admin Members) */}
 			{showMakePayment && currentCycle && user && (
 				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-					<div className="bg-background rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+					<div className="bg-background rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
 						<PaymentRequestForm
 							cycleId={currentCycle.id}
 							memberId={
@@ -1042,6 +1049,7 @@ export default function App() {
 							onSuccess={() => {
 								setShowMakePayment(false);
 								fetchPayments();
+								fetchNotificationCount(); // Refresh notification count for admin
 							}}
 							onCancel={() => setShowMakePayment(false)}
 						/>

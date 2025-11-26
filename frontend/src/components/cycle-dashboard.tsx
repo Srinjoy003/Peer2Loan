@@ -18,6 +18,7 @@ import {
 	ArrowRight,
 	Upload,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CycleDashboardProps {
 	cycle: Cycle;
@@ -29,6 +30,7 @@ interface CycleDashboardProps {
 	onRecordPayment?: (memberId: string) => void;
 	onExecutePayout?: () => void;
 	onMakePayment?: () => void;
+	onPaymentsUpdated?: () => void;
 }
 
 export function CycleDashboard({
@@ -41,6 +43,7 @@ export function CycleDashboard({
 	onRecordPayment,
 	onExecutePayout,
 	onMakePayment,
+	onPaymentsUpdated,
 }: CycleDashboardProps) {
 	if (!cycle) {
 		return (
@@ -50,31 +53,6 @@ export function CycleDashboard({
 		);
 	}
 	const cyclePayments = payments.filter((p) => p.cycleId === cycle.id);
-
-	console.log("=== CYCLE DASHBOARD RENDER ===");
-	console.log("All payments:", payments);
-	console.log("Cycle ID:", cycle.id, "Type:", typeof cycle.id);
-	console.log("Filtered cycle payments:", cyclePayments);
-	if (cyclePayments.length > 0) {
-		console.log("First cyclePayment:", cyclePayments[0]);
-		console.log("  Status:", cyclePayments[0].status);
-		console.log("  Status type:", typeof cyclePayments[0].status);
-	}
-
-	console.log("Cycle Dashboard Debug:", {
-		cycleId: cycle.id,
-		cycleIdType: typeof cycle.id,
-		totalPayments: payments.length,
-		cyclePayments: cyclePayments.length,
-		isAdmin,
-		currentUserEmail,
-		samplePayment: payments[0] || "no payments",
-		allPaymentsCycleIds: payments.map((p) => ({
-			id: p.id,
-			cycleId: p.cycleId,
-			cycleIdType: typeof p.cycleId,
-		})),
-	});
 
 	// Function to create payment records for this cycle
 	const handleCreatePayments = async () => {
@@ -111,13 +89,37 @@ export function CycleDashboard({
 	const contributingMembers = members.filter((m) => m.role !== "auditor");
 	const contributingMemberIds = contributingMembers.map((m) => m.id);
 
-	const paidPayments = cyclePayments.filter((p) => p.status === "paid");
-	const pendingPayments = cyclePayments.filter(
-		(p) =>
-			(p.status === "pending" || p.status === "late") &&
-			contributingMemberIds.includes(p.memberId)
+	// Filter payments to only include contributing members (non-auditors)
+	const validCyclePayments = cyclePayments.filter((p) => {
+		const isContributing =
+			contributingMemberIds.includes(p.memberId) ||
+			contributingMemberIds.includes(p.memberId?.toString());
+		return isContributing;
+	});
+
+	// Remove duplicates - keep only the most recent payment record per member
+	const deduplicatedPayments = [];
+	const seenMembers = new Set();
+
+	// Sort by creation date (most recent first) to keep latest records
+	const sortedPayments = [...validCyclePayments].sort((a, b) => {
+		const dateA = new Date(a.createdAt || 0).getTime();
+		const dateB = new Date(b.createdAt || 0).getTime();
+		return dateB - dateA; // Most recent first
+	});
+
+	for (const payment of sortedPayments) {
+		if (!seenMembers.has(payment.memberId)) {
+			deduplicatedPayments.push(payment);
+			seenMembers.add(payment.memberId);
+		}
+	}
+
+	const paidPayments = deduplicatedPayments.filter((p) => p.status === "paid");
+	const pendingPayments = deduplicatedPayments.filter(
+		(p) => p.status === "pending" || p.status === "late"
 	);
-	const pendingApprovalPayments = cyclePayments.filter(
+	const pendingApprovalPayments = deduplicatedPayments.filter(
 		(p) => p.status === "pending_approval"
 	);
 
@@ -126,7 +128,10 @@ export function CycleDashboard({
 	const progressPercentage = (paidCount / totalCount) * 100;
 
 	const potTotal = paidPayments.reduce((sum, p) => sum + p.amount, 0);
-	const totalPenalties = cyclePayments.reduce((sum, p) => sum + p.penalty, 0);
+	const totalPenalties = deduplicatedPayments.reduce(
+		(sum, p) => sum + p.penalty,
+		0
+	);
 
 	// Resolve payout recipient by id when available, otherwise fall back to matching by email
 	const payoutRecipient = members.find(
@@ -144,14 +149,7 @@ export function CycleDashboard({
 		(paidCount / totalCount) * 100 >= group.rules.quorumPercentage;
 
 	const getPaymentStatus = (memberId: string) => {
-		const payment = cyclePayments.find((p) => p.memberId === memberId);
-		console.log(`getPaymentStatus for memberId ${memberId}:`, {
-			found: !!payment,
-			payment: payment,
-			allMemberIds: cyclePayments.map((p) => p.memberId),
-			memberIdType: typeof memberId,
-			paymentMemberIdTypes: cyclePayments.map((p) => typeof p.memberId),
-		});
+		const payment = deduplicatedPayments.find((p) => p.memberId === memberId);
 		if (!payment) return null;
 		return payment;
 	};
@@ -488,15 +486,6 @@ export function CycleDashboard({
 
 				<CardContent>
 					<div className="space-y-2">
-						{(() => {
-							console.log("=== PAYMENT STATUS TABLE ===");
-							console.log(
-								"Members to display:",
-								members.filter((m) => m.role !== "auditor")
-							);
-							console.log("Cycle payments:", cyclePayments);
-							return null;
-						})()}
 						{members
 							.filter((m) => m.role !== "auditor")
 							.map((member) => {
@@ -504,9 +493,6 @@ export function CycleDashboard({
 
 								// Show all members, even if payment record is missing
 								if (!payment) {
-									console.warn(
-										`⚠️ No payment found for member ${member.name} (${member.id})`
-									);
 									return (
 										<div
 											key={member.id}
@@ -532,6 +518,47 @@ export function CycleDashboard({
 														onClick={onMakePayment}
 													>
 														Make Payment
+													</Button>
+												)}
+												{isAdmin && (
+													<Button
+														size="sm"
+														variant="outline"
+														onClick={async () => {
+															try {
+																const token = sessionStorage.getItem("token");
+																const response = await fetch(
+																	"/api/payments",
+																	{
+																		method: "POST",
+																		headers: {
+																			"Content-Type": "application/json",
+																			Authorization: `Bearer ${token}`,
+																		},
+																		body: JSON.stringify({
+																			cycleId: cycle.id,
+																			memberId: member.id,
+																			groupId: group.id,
+																			amount: group.monthlyContribution,
+																			status: "pending",
+																			penalty: 0,
+																		}),
+																	}
+																);
+
+																if (!response.ok) {
+																	throw new Error("Failed to create payment record");
+																}
+
+																toast.success("Payment record created successfully");
+																onPaymentsUpdated();
+															} catch (error) {
+																toast.error("Failed to create payment record");
+																console.error(error);
+															}
+														}}
+													>
+														Create Payment Record
 													</Button>
 												)}
 											</div>

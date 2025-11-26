@@ -30,42 +30,31 @@ const CycleForm = ({
 
 	// Calculate next payout recipient based on fixed order
 	const getNextPayoutRecipient = () => {
-		const contributingMembers = members.filter(m => m.role !== 'auditor');
-		
-		console.log('All members:', members);
-		console.log('Contributing members:', contributingMembers);
-		
+		const contributingMembers = members.filter((m) => m.role !== "auditor");
+
 		if (contributingMembers.length === 0) return null;
-		
+
 		// Sort by join date or createdAt
-		const sortedMembers = [...contributingMembers].sort(
-			(a, b) => {
-				const dateA = new Date(a.joinedAt || a.createdAt || 0).getTime();
-				const dateB = new Date(b.joinedAt || b.createdAt || 0).getTime();
-				return dateA - dateB;
-			}
-		);
-		
-		console.log('Sorted members:', sortedMembers);
-		
+		const sortedMembers = [...contributingMembers].sort((a, b) => {
+			const dateA = new Date(a.joinedAt || a.createdAt || 0).getTime();
+			const dateB = new Date(b.joinedAt || b.createdAt || 0).getTime();
+			return dateA - dateB;
+		});
+
 		// Get executed cycles (payouts that have been completed)
-		const executedCycles = cycles.filter(c => c.payoutExecuted);
-		const executedRecipients = executedCycles.map(c => c.payoutRecipientId);
-		
-		console.log('Executed recipients:', executedRecipients);
-		
+		const executedCycles = cycles.filter((c) => c.payoutExecuted);
+		const executedRecipients = executedCycles.map((c) => c.payoutRecipientId);
+
 		// Find members who haven't received payout yet
 		const remainingMembers = sortedMembers.filter(
-			m => !executedRecipients.includes(m.id || m._id)
+			(m) => !executedRecipients.includes(m.id || m._id)
 		);
-		
-		console.log('Remaining members:', remainingMembers);
-		
+
 		// If everyone has received, start new round
 		if (remainingMembers.length === 0) {
 			return sortedMembers[0];
 		}
-		
+
 		return remainingMembers[0];
 	};
 
@@ -100,14 +89,14 @@ const CycleForm = ({
 				"Content-Type": "application/json",
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
 			};
-		const payload = {
-			groupId,
-			cycleNumber: Number(form.cycleNumber),
-			// Backend will auto-assign recipient based on fixed order
-			// Ensure dashboard date/deadline render correctly
-			month: new Date().toISOString(),
-			deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-			contributions: [],
+			const payload = {
+				groupId,
+				cycleNumber: Number(form.cycleNumber),
+				// Backend will auto-assign recipient based on fixed order
+				// Ensure dashboard date/deadline render correctly
+				month: new Date().toISOString(),
+				deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				contributions: [],
 				potTotal: 0,
 				payoutExecuted: false,
 				status: "active",
@@ -130,7 +119,9 @@ const CycleForm = ({
 
 			const nextRecipient = getNextPayoutRecipient();
 			toast.success("Cycle created successfully!", {
-				description: `Cycle #${form.cycleNumber}${nextRecipient ? ` with payout to ${nextRecipient.name}` : ''}`,
+				description: `Cycle #${form.cycleNumber}${
+					nextRecipient ? ` with payout to ${nextRecipient.name}` : ""
+				}`,
 			});
 
 			setForm({
@@ -188,12 +179,15 @@ const CycleForm = ({
 								<Label>Next Payout Recipient</Label>
 								<div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
 									{(() => {
-										if (group?.turnOrderPolicy === 'randomized') {
+										if (group?.turnOrderPolicy === "randomized") {
 											return (
 												<div className="space-y-1">
-													<p className="font-semibold text-lg text-blue-900 dark:text-blue-100">🎲 Random Selection</p>
+													<p className="font-semibold text-lg text-blue-900 dark:text-blue-100">
+														🎲 Random Selection
+													</p>
 													<p className="text-sm text-blue-700 dark:text-blue-300">
-														Recipient will be randomly selected from eligible members
+														Recipient will be randomly selected from eligible
+														members
 													</p>
 													<p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
 														ℹ️ Using randomized turn order policy
@@ -210,15 +204,20 @@ const CycleForm = ({
 												</p>
 											);
 										}
-									return (
-										<div className="space-y-1">
-											<p className="font-semibold text-lg text-blue-900 dark:text-blue-100">{nextRecipient.name}</p>
-											<p className="text-sm text-blue-700 dark:text-blue-300">{nextRecipient.email}</p>
-											<p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-												ℹ️ Recipient is automatically assigned based on fixed turn order
-											</p>
-										</div>
-									);
+										return (
+											<div className="space-y-1">
+												<p className="font-semibold text-lg text-blue-900 dark:text-blue-100">
+													{nextRecipient.name}
+												</p>
+												<p className="text-sm text-blue-700 dark:text-blue-300">
+													{nextRecipient.email}
+												</p>
+												<p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+													ℹ️ Recipient is automatically assigned based on fixed
+													turn order
+												</p>
+											</div>
+										);
 									})()}
 								</div>
 							</div>

@@ -5,6 +5,7 @@ const Member = require("../models/Member.js");
 const Group = require("../models/Group.js");
 const { getDB } = require("../db.js");
 const { verifyToken, isGroupAdmin } = require("../middleware/auth.js");
+const { ObjectId } = require("mongodb");
 
 // Create invitation (when admin invites a member)
 router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
@@ -116,16 +117,52 @@ router.post("/:id/accept", async (req, res) => {
 			return res.status(400).json({ error: "Invitation already processed" });
 		}
 
+		// Get the actual user's name from the users collection
+		const db = getDB();
+		const user = await db.collection("users").findOne({ email: invitation.inviteeEmail });
+		
 		// Create the member from the stored memberData
 		const memberData = {
 			...invitation.memberData,
-			name: invitation.inviteeName, // Use the name from the invitation
+			name: user ? user.name : invitation.inviteeName, // Use actual user name from database, fallback to invitation name
 			groupId: invitation.groupId,
 			confirmedJoin: true,
 			joinedAt: new Date().toISOString(),
 		};
 
 		const memberId = await Member.createMember(memberData);
+		
+		// If there's an active cycle, create a payment record for the new member
+		const activeCycle = await db.collection("cycles").findOne({
+			groupId: invitation.groupId,
+			status: "active",
+		});
+
+		if (activeCycle) {
+			const group = await db
+				.collection("groups")
+				.findOne({ _id: new ObjectId(invitation.groupId) });
+
+			if (group) {
+				try {
+					await db.collection("payments").insertOne({
+						cycleId: activeCycle._id,
+						memberId: new ObjectId(memberId),
+						groupId: invitation.groupId,
+						amount: group.monthlyContribution,
+						status: "pending",
+						penalty: 0,
+						createdAt: new Date().toISOString(),
+						updatedAt: new Date().toISOString(),
+					});
+				} catch (err) {
+					// If duplicate key error (payment already exists), ignore it
+					if (err.code !== 11000) {
+						throw err;
+					}
+				}
+			}
+		}
 
 		// Update invitation status
 		await Invitation.updateInvitationStatus(req.params.id, "accepted");

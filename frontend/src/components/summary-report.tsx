@@ -237,40 +237,105 @@ export function SummaryReport({
 			</Card>
 
 			{/* Current Month Summary */}
-			{currentReport && (
-				<Card className="bg-blue-50 border-blue-200">
-					<CardHeader>
-						<div className="flex items-start justify-between">
-							<div>
-								<CardTitle className="text-blue-900">
-									Current Month Summary
-								</CardTitle>
-								<CardDescription className="text-blue-700">
-									Plain English snapshot of the current cycle
-								</CardDescription>
-							</div>
-							<Badge variant="default">Active</Badge>
-						</div>
-					</CardHeader>
-					<CardContent>
-						<p className="text-blue-900 text-lg leading-relaxed">
-							{currentReport}
-						</p>
+			{currentReport &&
+				(() => {
+					const cyclePayments = payments.filter(
+						(p) => p.cycleId === activeCycle?.id
+					);
+					const paidPayments = cyclePayments.filter((p) => p.status === "paid");
+					const totalMembers = members.filter(
+						(m) => m.role !== "auditor"
+					).length;
+					const potTotal = paidPayments.reduce((sum, p) => sum + p.amount, 0);
+					const recipient = members.find(
+						(m) => m.id === activeCycle?.payoutRecipientId
+					);
+					const deadlineDays = activeCycle
+						? Math.ceil(
+								(new Date(activeCycle.deadline).getTime() -
+									new Date().getTime()) /
+									(1000 * 60 * 60 * 24)
+						  )
+						: 0;
 
-						<div className="flex gap-2 mt-4 pt-4 border-t border-blue-200">
-							<Button
-								variant="outline"
-								size="sm"
-								className="gap-2"
-								onClick={() => setShowActivityLogs(true)}
-							>
-								<Activity className="w-4 h-4" />
-								Activity Logs
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			)}
+					return (
+						<Card className="bg-blue-50 border-blue-200">
+							<CardHeader className="pb-3">
+								<div className="flex items-start justify-between">
+									<div>
+										<CardTitle className="text-blue-900 text-xl">
+											Current Month Summary
+										</CardTitle>
+									</div>
+									<Badge variant="default">Active</Badge>
+								</div>
+							</CardHeader>
+							<CardContent className="pt-3">
+								<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+									<div className="space-y-1">
+										<p className="text-sm text-blue-600 font-medium">Cycle</p>
+										<p className="text-lg font-semibold text-blue-900">
+											Month {activeCycle?.cycleNumber}
+										</p>
+									</div>
+									<div className="space-y-1">
+										<p className="text-sm text-blue-600 font-medium">
+											Payment Status
+										</p>
+										<p className="text-lg font-semibold text-blue-900">
+											{paidPayments.length}/{totalMembers} paid
+										</p>
+									</div>
+									<div className="space-y-1">
+										<p className="text-sm text-blue-600 font-medium">
+											Pot Total
+										</p>
+										<p className="text-lg font-semibold text-blue-900">
+											{formatCurrency(potTotal, group.currency)}
+										</p>
+									</div>
+									<div className="space-y-1">
+										<p className="text-sm text-blue-600 font-medium">
+											Recipient
+										</p>
+										<p className="text-lg font-semibold text-blue-900">
+											{recipient?.name || "Unknown"}
+										</p>
+									</div>
+								</div>
+
+								<div className="mt-4 pt-4 border-t border-blue-200">
+									<div className="space-y-1">
+										<p className="text-sm text-blue-600 font-medium">
+											Payout Status
+										</p>
+										<p className="text-base text-blue-900">
+											{deadlineDays > 0
+												? `Scheduled in ${deadlineDays} days`
+												: deadlineDays === 0
+												? "Scheduled today"
+												: `Overdue by ${Math.abs(deadlineDays)} days`}
+											{totalMembers - paidPayments.length > 0 &&
+												` • ${totalMembers - paidPayments.length} pending`}
+										</p>
+									</div>
+								</div>
+
+								<div className="flex gap-2 mt-4 pt-4 border-t border-blue-200">
+									<Button
+										variant="outline"
+										size="sm"
+										className="gap-2"
+										onClick={() => setShowActivityLogs(true)}
+									>
+										<Activity className="w-4 h-4" />
+										Activity Logs
+									</Button>
+								</div>
+							</CardContent>
+						</Card>
+					);
+				})()}
 
 			{/* Historical Reports */}
 			<Card>

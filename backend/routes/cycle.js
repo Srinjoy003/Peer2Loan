@@ -101,16 +101,15 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 			// Automatically determine next recipient based on policy
 			let nextRecipient = null;
 
-			if (group.turnOrderPolicy === 'randomized') {
+			if (group.turnOrderPolicy === "randomized") {
 				// Randomized: select randomly from members who haven't received yet
-				const remainingMembers = contributingMembers.filter(member => 
-					!executedPayoutIds.includes(member._id.toString())
+				const remainingMembers = contributingMembers.filter(
+					(member) => !executedPayoutIds.includes(member._id.toString())
 				);
 
 				// If everyone has received, start new round with all members
-				const eligibleMembers = remainingMembers.length > 0 
-					? remainingMembers 
-					: contributingMembers;
+				const eligibleMembers =
+					remainingMembers.length > 0 ? remainingMembers : contributingMembers;
 
 				// Pick random member
 				const randomIndex = Math.floor(Math.random() * eligibleMembers.length);

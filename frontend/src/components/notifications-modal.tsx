@@ -156,40 +156,46 @@ export function NotificationsModal({
 	}
 
 	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-			<Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
-				<CardHeader>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							<Bell className="w-5 h-5" />
-							<CardTitle>Notifications</CardTitle>
+		<div
+			className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+			onClick={onClose}
+		>
+			<div
+				className="w-full max-w-4xl mx-4 overflow-hidden"
+				onClick={(e) => e.stopPropagation()}
+			>
+				<Card className="h-full flex flex-col overflow-hidden">
+					<CardHeader className="flex-shrink-0 pb-3">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Bell className="w-5 h-5" />
+								<CardTitle>Notifications</CardTitle>
+							</div>
+							<Button variant="ghost" size="sm" onClick={onClose}>
+								<X className="w-4 h-4" />
+							</Button>
 						</div>
-						<Button variant="ghost" size="sm" onClick={onClose}>
-							<X className="w-4 h-4" />
-						</Button>
-					</div>
-					<CardDescription>
-						You have {invitations.length} pending invitation
-						{invitations.length !== 1 ? "s" : ""}
-					</CardDescription>
-				</CardHeader>
+						<CardDescription>
+							You have {invitations.length} pending invitation
+							{invitations.length !== 1 ? "s" : ""}
+						</CardDescription>
+					</CardHeader>
 
-				<CardContent className="flex-1 overflow-hidden">
-					{loading ? (
-						<div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
-							Loading invitations...
-						</div>
-					) : error ? (
-						<div className="flex items-center justify-center min-h-[200px] text-destructive">
-							Error: {error}
-						</div>
-					) : invitations.length === 0 ? (
-						<div className="flex flex-col items-center justify-center min-h-[200px] text-muted-foreground">
-							<Bell className="w-12 h-12 mb-4 opacity-20" />
-							<p>No pending invitations</p>
-						</div>
-					) : (
-						<ScrollArea className="h-full pr-4">
+					<CardContent className="flex-1 overflow-y-auto min-h-0 p-6 pt-2">
+						{loading ? (
+							<div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
+								Loading invitations...
+							</div>
+						) : error ? (
+							<div className="flex items-center justify-center min-h-[200px] text-destructive">
+								Error: {error}
+							</div>
+						) : invitations.length === 0 ? (
+							<div className="flex flex-col items-center justify-center min-h-[200px] text-muted-foreground">
+								<Bell className="w-12 h-12 mb-4 opacity-20" />
+								<p>No pending invitations</p>
+							</div>
+						) : (
 							<div className="space-y-4">
 								{invitations.map((invitation) => {
 									const invId = invitation._id || invitation.id;
@@ -263,10 +269,10 @@ export function NotificationsModal({
 									);
 								})}
 							</div>
-						</ScrollArea>
-					)}
-				</CardContent>
-			</Card>
+						)}
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	);
 }

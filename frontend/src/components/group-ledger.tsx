@@ -119,7 +119,7 @@ export function GroupLedger2({
 									formatCurrency(value, group.currency)
 								}
 							/>
-							<Legend iconType="square" wrapperStyle={{ color: 'inherit' }} />
+							<Legend iconType="square" wrapperStyle={{ color: "inherit" }} />
 							<Bar
 								dataKey="collected"
 								fill={greenColors.collected}
@@ -513,7 +513,7 @@ export function GroupLedger({
 								}}
 								cursor={{ fill: "rgba(200, 200, 200, 0.2)" }}
 							/>
-							<Legend iconType="square" wrapperStyle={{ color: 'inherit' }} />
+							<Legend iconType="square" wrapperStyle={{ color: "inherit" }} />
 							<Bar
 								dataKey="collected"
 								fill={greenColors.collected}
