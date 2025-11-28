@@ -49,8 +49,29 @@ export function SummaryReport({
 	);
 	const averagePot =
 		completedCycles.length > 0 ? totalPayout / completedCycles.length : 0;
+	// Calculate based on members who received payouts vs total members
+	const contributingMembers = members.filter((m) => m.role !== "auditor");
+	const uniquePayoutRecipients = completedCycles.map(
+		(c) => c.payoutRecipientId
+	);
+	const totalPayoutsGiven = uniquePayoutRecipients.length;
+
+	// Calculate which round we're in and progress within that round
+	const currentRound =
+		contributingMembers.length > 0
+			? Math.floor(totalPayoutsGiven / contributingMembers.length) + 1
+			: 1;
+	const payoutsInCurrentRound =
+		totalPayoutsGiven % contributingMembers.length ||
+		(totalPayoutsGiven > 0 &&
+		totalPayoutsGiven % contributingMembers.length === 0
+			? contributingMembers.length
+			: 0);
+
 	const completionRate =
-		cycles.length > 0 ? (completedCycles.length / cycles.length) * 100 : 0;
+		contributingMembers.length > 0
+			? (payoutsInCurrentRound / contributingMembers.length) * 100
+			: 0;
 	const onTimeCompletions = completedCycles.filter(
 		(c) => c.completedOnTime
 	).length;
@@ -94,13 +115,17 @@ export function SummaryReport({
 				const paidPayments = cyclePayments.filter((p) => p.status === "paid");
 				const recipient = members.find((m) => m.id === cycle.payoutRecipientId);
 
+				const actualCollected = paidPayments.reduce(
+					(sum, p) => sum + p.amount,
+					0
+				);
 				return {
 					cycle,
 					summary: generateCycleSummary(
 						cycle.cycleNumber,
 						paidPayments.length,
 						members.filter((m) => m.role !== "auditor").length,
-						paidPayments.reduce((sum, p) => sum + p.amount, 0),
+						actualCollected,
 						recipient?.name || "Unknown",
 						cycle.deadline,
 						group.currency
@@ -108,6 +133,9 @@ export function SummaryReport({
 					recipient,
 					paidCount: paidPayments.length,
 					totalPenalties: cyclePayments.reduce((sum, p) => sum + p.penalty, 0),
+					potTotal: cycle.payoutExecuted
+						? cycle.potTotal || actualCollected
+						: actualCollected,
 				};
 			});
 	};
@@ -133,7 +161,7 @@ export function SummaryReport({
 			formatDate(r.cycle.month),
 			r.cycle.status,
 			`${r.paidCount}/${members.filter((m) => m.role !== "auditor").length}`,
-			r.cycle.potTotal,
+			r.potTotal,
 			r.totalPenalties,
 			r.recipient?.name || "",
 			r.cycle.payoutExecuted ? "Completed" : "Pending",
@@ -394,21 +422,18 @@ export function SummaryReport({
 									{report.cycle.status}
 								</Badge>
 							</div>
-
 							<p className="text-muted-foreground mb-3">{report.summary}</p>
-
 							{report.cycle.payoutExecuted && (
 								<div className="bg-green-50 border border-green-200 rounded px-3 py-2">
 									<p className="text-green-700">
 										✓ Payout of{" "}
-										{formatCurrency(report.cycle.potTotal, group.currency)}{" "}
-										completed on {formatDate(report.cycle.payoutExecutedAt!)}
+										{formatCurrency(report.potTotal, group.currency)} completed
+										on {formatDate(report.cycle.payoutExecutedAt!)}
 										{report.cycle.payoutProof &&
 											` (Ref: ${report.cycle.payoutProof})`}
 									</p>
 								</div>
-							)}
-
+							)}{" "}
 							{report.totalPenalties > 0 && (
 								<div className="bg-orange-50 border border-orange-200 rounded px-3 py-2 mt-2">
 									<p className="text-orange-700">
@@ -462,35 +487,33 @@ export function SummaryReport({
 					</div>
 
 					<div className="pt-4 border-t">
-						<p className="text-muted-foreground mb-2">Group Progress</p>
+						<p className="text-muted-foreground mb-2">
+							Group Progress {currentRound > 1 && `(Round ${currentRound})`}
+						</p>
 						<div className="flex items-center gap-4">
 							<div className="flex-1 bg-secondary rounded-full h-3">
 								<div
 									className="bg-primary rounded-full h-3 transition-all"
 									style={{
-										width: `${
-											(cycles.filter((c) => c.status === "completed").length /
-												group.duration) *
-											100
-										}%`,
+										width: `${completionRate}%`,
 									}}
 								/>
 							</div>
-							<span>
-								{Math.round(
-									(cycles.filter((c) => c.status === "completed").length /
-										group.duration) *
-										100
-								)}
-								%
-							</span>
+							<span>{Math.round(completionRate)}%</span>
 						</div>
+						{currentRound > 1 && (
+							<p className="text-xs text-muted-foreground mt-2">
+								🔄 Round {currentRound} in progress • {payoutsInCurrentRound}/
+								{contributingMembers.length} members paid
+							</p>
+						)}
 					</div>
 
 					<div className="bg-muted rounded-lg p-4 mt-4">
 						<p>
 							<span className="text-muted-foreground">
-								Expected completion:
+								Expected {currentRound > 1 ? `Round ${currentRound}` : ""}{" "}
+								completion:
 							</span>{" "}
 							{(() => {
 								if (
@@ -502,7 +525,13 @@ export function SummaryReport({
 								}
 								const start = new Date(group.startMonth);
 								if (isNaN(start.getTime())) return "-";
-								start.setMonth(start.getMonth() + group.duration);
+								// Calculate completion date based on current round
+								const cyclesNeeded =
+									(currentRound - 1) * contributingMembers.length +
+									contributingMembers.length;
+								const monthsNeeded =
+									cyclesNeeded * ((group as any).cycleIntervalMonths || 1);
+								start.setMonth(start.getMonth() + monthsNeeded);
 								return formatDate(start.toISOString());
 							})()}
 						</p>

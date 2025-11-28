@@ -101,9 +101,8 @@ export function MemberLedger({
 							</div>
 						</div>
 					</div>
-
 					{/* Progress Stats */}
-					<div className="grid grid-cols-3 gap-4 pt-4 border-t">
+					<div className="grid grid-cols-4 gap-4 pt-4 border-t">
 						<div className="space-y-1">
 							<p className="text-muted-foreground">Completion</p>
 							<p>{stats.completionPercentage}%</p>
@@ -122,8 +121,16 @@ export function MemberLedger({
 								<span>{stats.latePayments}</span>
 							</div>
 						</div>
-					</div>
-
+						<div className="space-y-1">
+							<p className="text-muted-foreground">On-Time Streak</p>
+							<div className="flex items-center gap-2">
+								<span className="text-2xl">🔥</span>
+								<span className="font-semibold text-lg">
+									{stats.onTimeStreak}
+								</span>
+							</div>
+						</div>
+					</div>{" "}
 					{/* Arrears Warning */}
 					{stats.totalArrears > 0 && (
 						<div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -134,7 +141,6 @@ export function MemberLedger({
 							</p>
 						</div>
 					)}
-
 					{/* Payout Schedule */}
 					{payoutCycle && (
 						<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

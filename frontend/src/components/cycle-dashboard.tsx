@@ -54,6 +54,19 @@ export function CycleDashboard({
 	}
 	const cyclePayments = payments.filter((p) => p.cycleId === cycle.id);
 
+	console.log("🔍 CycleDashboard render:", {
+		cycleId: cycle.id,
+		totalPayments: payments.length,
+		cyclePayments: cyclePayments.length,
+		currentUserEmail,
+		payments: cyclePayments.map((p) => ({
+			id: p.id,
+			memberId: p.memberId,
+			status: p.status,
+			amount: p.amount,
+		})),
+	});
+
 	// Function to create payment records for this cycle
 	const handleCreatePayments = async () => {
 		try {
@@ -198,10 +211,11 @@ export function CycleDashboard({
 			rejected: "destructive",
 		};
 
-	const labels: Record<string, string> = {
-		pending_approval: "Awaiting Approval",
-		rejected: "Rejected",
-	};		return (
+		const labels: Record<string, string> = {
+			pending_approval: "Awaiting Approval",
+			rejected: "Rejected",
+		};
+		return (
 			<Badge variant={variants[effectiveStatus] || "outline"}>
 				{labels[effectiveStatus] || effectiveStatus}
 			</Badge>
@@ -583,16 +597,15 @@ export function CycleDashboard({
 													Paid on {formatDate(payment.paidOn)}
 												</span>
 											)}
-
 											{payment.penalty > 0 && (
 												<span className="text-orange-600">
 													+{formatCurrency(payment.penalty, group.currency)} fee
 												</span>
 											)}
-
-							<div className="w-32 shrink-0">
-								{getStatusBadge(payment.status, payment)}
-							</div>											{payment.status !== "paid" &&
+											<div className="w-32 shrink-0">
+												{getStatusBadge(payment.status, payment)}
+											</div>{" "}
+											{payment.status !== "paid" &&
 												!isAdmin &&
 												member.email === currentUserEmail &&
 												onMakePayment && (

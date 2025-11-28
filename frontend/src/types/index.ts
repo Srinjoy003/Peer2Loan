@@ -139,6 +139,7 @@ export interface MemberStats {
 	onTimePayments: number;
 	latePayments: number;
 	completionPercentage: number;
+	onTimeStreak: number;
 }
 
 export interface CycleSummary {

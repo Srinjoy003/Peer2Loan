@@ -111,8 +111,19 @@ export default function App() {
 		const headers = token ? { Authorization: `Bearer ${token}` } : {};
 		const paymentsRes = await fetch("http://localhost:4000/api/payments", {
 			headers,
+			cache: "no-store", // Prevent caching to ensure fresh data
 		});
 		const paymentsData = await paymentsRes.json();
+		console.log("💰 fetchPayments:", {
+			count: paymentsData.length,
+			payments: paymentsData.map((p: any) => ({
+				id: p.id,
+				cycleId: p.cycleId,
+				memberId: p.memberId,
+				status: p.status,
+				amount: p.amount,
+			})),
+		});
 		setPayments(paymentsData);
 	}
 
@@ -255,6 +266,21 @@ export default function App() {
 
 		return () => clearInterval(interval);
 	}, [user]);
+
+	// Poll for payment and cycle updates every 3 seconds (only when tab is visible)
+	useEffect(() => {
+		if (!user || !selectedGroupId) return;
+
+		const pollInterval = setInterval(() => {
+			// Only poll if tab is visible to save resources
+			if (document.visibilityState === "visible") {
+				fetchPayments();
+				fetchCycles();
+			}
+		}, 3000); // Poll every 3 seconds
+
+		return () => clearInterval(pollInterval);
+	}, [user, selectedGroupId]);
 
 	// Auto-select first member when group changes
 	useEffect(() => {
@@ -1046,10 +1072,12 @@ export default function App() {
 							}
 							expectedAmount={selectedGroup?.monthlyContribution || 0}
 							currency={selectedGroup?.currency || "USD"}
-							onSuccess={() => {
-								setShowMakePayment(false);
-								fetchPayments();
+							onSuccess={async () => {
+								// Force refresh all data to show updated status
+								await fetchPayments();
+								await fetchCycles();
 								fetchNotificationCount(); // Refresh notification count for admin
+								setShowMakePayment(false);
 							}}
 							onCancel={() => setShowMakePayment(false)}
 						/>

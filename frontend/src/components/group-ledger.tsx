@@ -60,14 +60,16 @@ export function GroupLedger2({
 			(sum, p) => sum + (p.penalty || 0),
 			0
 		);
+		const actualCollected = paidPayments.reduce((sum, p) => sum + p.amount, 0);
 		return {
 			month: cycle.month
 				? formatDate(cycle.month)
 				: `Month ${cycle.cycleNumber}`,
-			collected: paidPayments.reduce((sum, p) => sum + p.amount, 0),
+			collected: actualCollected,
+			// For executed payouts, use cycle.potTotal; for active cycles, show current collected amount
 			payout: cycle.payoutExecuted
-				? cycle.potTotal || paidPayments.reduce((sum, p) => sum + p.amount, 0)
-				: 0,
+				? cycle.potTotal || actualCollected
+				: actualCollected,
 			penalties,
 		};
 	});
@@ -77,18 +79,19 @@ export function GroupLedger2({
 		const cyclePayments = payments.filter((p) => p.cycleId === cycle.id);
 		const paidPayments = cyclePayments.filter((p) => p.status === "paid");
 		const totalMembers = members.filter((m) => m.role !== "auditor").length;
+		const actualCollected = paidPayments.reduce((sum, p) => sum + p.amount, 0);
 		return {
 			cycle,
 			paidCount: paidPayments.length,
 			totalMembers,
-			totalCollected: paidPayments.reduce((sum, p) => sum + p.amount, 0),
+			totalCollected: actualCollected,
 			totalPenalties: cyclePayments.reduce(
 				(sum, p) => sum + (p.penalty || 0),
 				0
 			),
-			payoutAmount: cycle.payoutExecuted
-				? cycle.potTotal || paidPayments.reduce((sum, p) => sum + p.amount, 0)
-				: 0,
+			// Always show actual collected amount to reflect current reality
+			// This ensures accuracy even if members were added after cycle creation
+			payoutAmount: actualCollected,
 		};
 	});
 	if (!group || !group.rules) {
@@ -309,7 +312,9 @@ export function GroupLedger({
 			totalPenalties,
 			paidCount,
 			totalMembers,
-			payoutAmount: cycle.payoutExecuted ? cycle.potTotal : 0,
+			// Always show actual collected amount - this reflects current reality
+			// Even for executed payouts, show what was actually collected (not the historical potTotal)
+			payoutAmount: totalCollected,
 		};
 	});
 
