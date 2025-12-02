@@ -7,13 +7,19 @@ export default function AuthForm({ onAuth }) {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [name, setName] = useState("");
+
+	// Split success + error
 	const [error, setError] = useState("");
+	const [success, setSuccess] = useState("");
+
 	const [loading, setLoading] = useState(false);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setError("");
+		setSuccess("");
 		setLoading(true);
+
 		try {
 			if (mode === "signup") {
 				const res = await fetch(`${API_URL}/signup`, {
@@ -21,22 +27,25 @@ export default function AuthForm({ onAuth }) {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ email, password, name }),
 				});
+
 				const data = await res.json();
 				if (!res.ok) throw new Error(data.error || "Signup failed");
+
 				setMode("login");
-				setError("Signup successful! Please log in.");
+				setSuccess("Signup successful! Please log in.");
 			} else {
 				const res = await fetch(`${API_URL}/login`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ email, password }),
 				});
+
 				const data = await res.json();
 				if (!res.ok) throw new Error(data.error || "Login failed");
+
 				sessionStorage.setItem("token", data.token);
 				sessionStorage.setItem("user", JSON.stringify(data.user));
-				console.log("AuthForm onAuth user:", data.user);
-				onAuth && onAuth(data.user);
+				onAuth?.(data.user);
 			}
 		} catch (err) {
 			setError(err.message);
@@ -55,6 +64,7 @@ export default function AuthForm({ onAuth }) {
 					<h2 className="text-2xl font-semibold text-center mb-6 text-foreground">
 						{mode === "signup" ? "Create Account" : "Sign In"}
 					</h2>
+
 					<form
 						onSubmit={handleSubmit}
 						className="flex flex-col gap-4"
@@ -75,6 +85,7 @@ export default function AuthForm({ onAuth }) {
 								/>
 							</div>
 						)}
+
 						<div>
 							<label className="block text-sm text-muted-foreground mb-1">
 								Email
@@ -88,6 +99,7 @@ export default function AuthForm({ onAuth }) {
 								className="w-full px-4 py-3 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary"
 							/>
 						</div>
+
 						<div>
 							<label className="block text-sm text-muted-foreground mb-1">
 								Password
@@ -101,6 +113,7 @@ export default function AuthForm({ onAuth }) {
 								className="w-full px-4 py-3 rounded-lg bg-background border border-input focus:outline-none focus:ring-2 focus:ring-primary"
 							/>
 						</div>
+
 						<button
 							type="submit"
 							className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition disabled:opacity-60"
@@ -112,18 +125,29 @@ export default function AuthForm({ onAuth }) {
 								? "Sign Up"
 								: "Login"}
 						</button>
+
 						<button
 							type="button"
 							className="w-full text-sm text-primary mt-2 hover:underline"
 							onClick={() => {
 								setMode(mode === "signup" ? "login" : "signup");
 								setError("");
+								setSuccess("");
 							}}
 						>
 							{mode === "signup"
 								? "Already have an account? Sign In"
 								: "Don't have an account? Create one"}
 						</button>
+
+						{/* Success message (green) */}
+						{success && (
+							<div className="text-green-600 text-sm text-center mt-2">
+								{success}
+							</div>
+						)}
+
+						{/* Error message (red) */}
 						{error && (
 							<div className="text-red-600 text-sm text-center mt-2">
 								{error}
@@ -131,7 +155,6 @@ export default function AuthForm({ onAuth }) {
 						)}
 					</form>
 				</div>
-				{/* Copyright removed as requested */}
 			</div>
 		</div>
 	);
