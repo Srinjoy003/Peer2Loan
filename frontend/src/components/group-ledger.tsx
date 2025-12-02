@@ -66,10 +66,8 @@ export function GroupLedger2({
 				? formatDate(cycle.month)
 				: `Month ${cycle.cycleNumber}`,
 			collected: actualCollected,
-			// For executed payouts, use cycle.potTotal; for active cycles, show current collected amount
-			payout: cycle.payoutExecuted
-				? cycle.potTotal || actualCollected
-				: actualCollected,
+			// Only show payout after it's executed
+			payout: cycle.payoutExecuted ? cycle.potTotal || actualCollected : 0,
 			penalties,
 		};
 	});
@@ -80,6 +78,17 @@ export function GroupLedger2({
 		const paidPayments = cyclePayments.filter((p) => p.status === "paid");
 		const totalMembers = members.filter((m) => m.role !== "auditor").length;
 		const actualCollected = paidPayments.reduce((sum, p) => sum + p.amount, 0);
+
+		// Debug logging for cycle 3
+		if (cycle.cycleNumber === 3) {
+			console.log("Cycle 3 Debug:", {
+				cycleNumber: cycle.cycleNumber,
+				payoutExecuted: cycle.payoutExecuted,
+				potTotal: cycle.potTotal,
+				actualCollected: actualCollected,
+			});
+		}
+
 		return {
 			cycle,
 			paidCount: paidPayments.length,
@@ -89,9 +98,10 @@ export function GroupLedger2({
 				(sum, p) => sum + (p.penalty || 0),
 				0
 			),
-			// Always show actual collected amount to reflect current reality
-			// This ensures accuracy even if members were added after cycle creation
-			payoutAmount: actualCollected,
+			// Only show payout amount after payout is executed
+			payoutAmount: cycle.payoutExecuted
+				? cycle.potTotal || actualCollected
+				: 0,
 		};
 	});
 	if (!group || !group.rules) {
@@ -312,9 +322,8 @@ export function GroupLedger({
 			totalPenalties,
 			paidCount,
 			totalMembers,
-			// Always show actual collected amount - this reflects current reality
-			// Even for executed payouts, show what was actually collected (not the historical potTotal)
-			payoutAmount: totalCollected,
+			// Only show payout amount after payout is executed
+			payoutAmount: cycle.payoutExecuted ? cycle.potTotal || totalCollected : 0,
 		};
 	});
 

@@ -175,7 +175,10 @@ export function PaymentRecorder({
 												{getMemberName(p.memberId)}
 											</p>
 											<p className="text-sm text-muted-foreground">
-												Submitted {new Date(p.createdAt).toLocaleDateString()}
+												Submitted{" "}
+												{new Date(
+													p.submittedAt || p.createdAt
+												).toLocaleDateString()}
 											</p>
 										</div>
 										<Badge variant="secondary">

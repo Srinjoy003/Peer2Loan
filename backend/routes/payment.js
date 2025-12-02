@@ -8,7 +8,13 @@ const { ObjectId } = require("mongodb");
 // Member submits payment request (pending approval)
 router.post("/request", verifyToken, async (req, res) => {
 	try {
-		const { cycleId, memberId, amount, proof } = req.body;
+		console.log("🔔 Payment request received:", {
+			cycleId: req.body.cycleId,
+			memberId: req.body.memberId,
+			amount: req.body.amount,
+			hasSubmissionDate: !!req.body.submissionDate,
+		});
+		const { cycleId, memberId, amount, proof, submissionDate } = req.body;
 		const db = getDB();
 
 		// Verify member exists and belongs to the group
@@ -39,25 +45,82 @@ router.post("/request", verifyToken, async (req, res) => {
 		}
 
 		// Calculate penalty if payment is late
-		const now = new Date();
+		// Use custom submission date if provided (for testing), otherwise use current time
+		// When using date input (YYYY-MM-DD), add time to make it end of day for comparison
+		let now;
+		if (submissionDate && submissionDate.trim() !== "") {
+			// If submissionDate is just a date (YYYY-MM-DD), treat it as end of that day
+			now = new Date(submissionDate);
+			// Set to end of day (23:59:59) for fair comparison
+			now.setHours(23, 59, 59, 999);
+		} else {
+			now = new Date();
+		}
 		const deadline = new Date(cycle.deadline);
-		const isLate = now > deadline;
-		const penaltyAmount = isLate ? group.rules?.lateFee || 0 : 0;
+		
+		// Apply grace period - penalties start after grace period ends
+		const gracePeriodDays = group.rules?.gracePeriodDays || 0;
+		const graceDeadline = new Date(deadline);
+		graceDeadline.setDate(graceDeadline.getDate() + gracePeriodDays);
+		
+		const isLate = now > graceDeadline;
+
+		let penaltyAmount = 0;
+		let daysLate = 0;
+
+		if (isLate) {
+			// Calculate days late (after grace period)
+			daysLate = Math.floor((now - graceDeadline) / (1000 * 60 * 60 * 24));
+
+			// Use per-day late fee if defined, otherwise use fixed late fee
+			// Check both old and new field names for backwards compatibility
+			const perDayLateFee =
+				group.rules?.perDayLateFee || group.rules?.lateFeePerDay || 0;
+			const fixedLateFee = group.rules?.lateFee || 0;
+			const maxLateFee = group.rules?.lateFeeMax || 0;
+
+			console.log("Group late fee rules:", {
+				perDayLateFee,
+				fixedLateFee,
+				maxLateFee,
+				gracePeriodDays,
+				deadline: deadline.toISOString(),
+				graceDeadline: graceDeadline.toISOString(),
+				daysLate,
+			});
+
+			if (perDayLateFee > 0) {
+				// Calculate based on days late
+				penaltyAmount = daysLate * perDayLateFee;
+
+				// Apply max cap if defined
+				if (maxLateFee > 0 && penaltyAmount > maxLateFee) {
+					penaltyAmount = maxLateFee;
+				}
+			} else if (fixedLateFee > 0) {
+				// Use fixed late fee
+				penaltyAmount = fixedLateFee;
+			}
+
+			console.log("Calculated penalty:", { penaltyAmount, daysLate });
+		}
+
 		const contributionAmount = Number(amount) - penaltyAmount;
 
 		// Check if payment record already exists for this member/cycle
-		console.log(
-			"Looking for payment with cycleId:",
-			cycleId,
-			"memberId:",
-			memberId
-		);
+		// Search for both ObjectId and string formats to handle legacy data
 		const existingPayment = await db.collection("payments").findOne({
-			cycleId: new ObjectId(cycleId),
-			memberId: new ObjectId(memberId),
+			$or: [
+				{
+					cycleId: new ObjectId(cycleId),
+					memberId: new ObjectId(memberId),
+				},
+				{
+					cycleId: cycleId,
+					memberId: memberId,
+				},
+			],
 		});
-
-		console.log("Payment request - existing payment:", existingPayment);
 
 		if (existingPayment) {
 			// Update existing payment to pending_approval
@@ -69,7 +132,9 @@ router.post("/request", verifyToken, async (req, res) => {
 					amount: Number(amount),
 					contributionAmount: contributionAmount,
 					penaltyAmount: penaltyAmount,
-					submittedAt: new Date().toISOString(),
+					penalty: penaltyAmount, // Set penalty field
+					daysLate: daysLate,
+					submittedAt: now.toISOString(),
 					updatedAt: new Date().toISOString(),
 				},
 				{
@@ -80,11 +145,16 @@ router.post("/request", verifyToken, async (req, res) => {
 				}
 			);
 
-			console.log("Payment updated to pending_approval:", updated);
+			const message =
+				penaltyAmount > 0
+					? `Payment request submitted with late fee of ${penaltyAmount} (${daysLate} days late). Awaiting admin approval.`
+					: "Payment request submitted. Awaiting admin approval.";
 
 			return res.status(200).json({
 				id: existingPayment._id.toString(),
-				message: "Payment request submitted. Awaiting admin approval.",
+				message,
+				penaltyAmount,
+				daysLate,
 			});
 		}
 
@@ -96,17 +166,27 @@ router.post("/request", verifyToken, async (req, res) => {
 			amount: Number(amount),
 			contributionAmount: contributionAmount,
 			penaltyAmount: penaltyAmount,
+			penalty: penaltyAmount, // Set penalty field
+			daysLate: daysLate,
 			proof: proof || "",
 			status: "pending_approval",
-			penalty: 0,
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
+			submittedAt: now.toISOString(),
 		};
 
 		const id = await Payment.createPayment(paymentData);
+
+		const message =
+			penaltyAmount > 0
+				? `Payment request submitted with late fee of ${penaltyAmount} (${daysLate} days late). Awaiting admin approval.`
+				: "Payment request submitted. Awaiting admin approval.";
+
 		res.status(201).json({
 			id,
-			message: "Payment request submitted. Awaiting admin approval.",
+			message,
+			penaltyAmount,
+			daysLate,
 		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });

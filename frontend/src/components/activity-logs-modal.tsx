@@ -28,6 +28,7 @@ interface ActivityLog {
 	status?: string;
 	amount?: number;
 	currency?: string;
+	transactionId?: string;
 }
 
 interface ActivityLogsModalProps {
@@ -118,24 +119,23 @@ export function ActivityLogsModal({
 						status: cycle.status,
 					});
 
-					if (cycle.payoutExecuted && cycle.payoutExecutedAt) {
-						const recipient = members.find(
-							(m: any) => (m._id || m.id) === cycle.payoutRecipientId
-						);
-						activityLogs.push({
-							id: `payout-${cycle._id || cycle.id}`,
-							type: "payment",
-							timestamp: cycle.payoutExecutedAt,
-							description: `Payout executed to ${recipient?.name || "Unknown"}`,
-							targetName: recipient?.name,
-							status: "completed",
-							amount: cycle.potTotal,
-						});
-					}
+				if (cycle.payoutExecuted && cycle.payoutExecutedAt) {
+					const recipient = members.find(
+						(m: any) => (m._id || m.id) === cycle.payoutRecipientId
+					);
+					activityLogs.push({
+						id: `payout-${cycle._id || cycle.id}`,
+						type: "payment",
+						timestamp: cycle.payoutExecutedAt,
+						description: `Payout executed to ${recipient?.name || "Unknown"}`,
+						targetName: recipient?.name,
+						status: "completed",
+						amount: cycle.potTotal,
+						transactionId: cycle.transactionId,
+					});
 				}
-			});
-
-			// Process member additions
+			}
+		});			// Process member additions
 			members.forEach((member: any) => {
 				if (member.groupId === groupId && member.joinedAt) {
 					activityLogs.push({
@@ -262,20 +262,25 @@ export function ActivityLogsModal({
 											<div className="flex-1 min-w-0">
 												<div className="flex items-start justify-between gap-2">
 													<div className="flex-1">
-														<p className="font-medium text-sm">
-															{log.description}
+													<p className="font-medium text-sm">
+														{log.description}
+													</p>
+													{log.amount && (
+														<p className="text-sm text-muted-foreground">
+															Amount: {log.currency}{" "}
+															{log.amount.toLocaleString()}
 														</p>
-														{log.amount && (
-															<p className="text-sm text-muted-foreground">
-																Amount: {log.currency}{" "}
-																{log.amount.toLocaleString()}
-															</p>
-														)}
-														{log.targetName && log.type === "rejection" && (
-															<p className="text-sm text-muted-foreground">
-																Reason: {log.targetName}
-															</p>
-														)}
+													)}
+													{log.transactionId && (
+														<p className="text-sm text-muted-foreground">
+															Transaction ID: {log.transactionId}
+														</p>
+													)}
+													{log.targetName && log.type === "rejection" && (
+														<p className="text-sm text-muted-foreground">
+															Reason: {log.targetName}
+														</p>
+													)}
 													</div>
 													{getStatusBadge(log.type, log.status)}
 												</div>

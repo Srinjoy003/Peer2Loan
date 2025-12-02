@@ -252,21 +252,37 @@ export function CycleDashboard({
 							<CardTitle>
 								Month {cycle.cycleNumber} - {formatDate(cycle.month)}
 							</CardTitle>
-							<CardDescription>
-								Payout to: {payoutRecipient?.name}
-								{payoutRecipient?.payoutAccount && (
-									<>
-										{" "}
-										({payoutRecipient.payoutAccount.accountHolderName}
-										{payoutRecipient.payoutAccount.accountNumber
-											? ` — ${payoutRecipient.payoutAccount.accountNumber}`
-											: ""}
-										{payoutRecipient.payoutAccount.ifscCode
-											? `, ${payoutRecipient.payoutAccount.ifscCode}`
-											: ""}
-										)
-									</>
-								)}
+							<CardDescription className="space-y-1">
+								<div>
+									<span className="font-medium">Payment Deadline:</span>{" "}
+									{formatDate(cycle.deadline)}
+									{daysUntilDeadline > 0 && (
+										<span className="text-muted-foreground ml-1">
+											({daysUntilDeadline} days remaining)
+										</span>
+									)}
+									{daysUntilDeadline < 0 && (
+										<span className="text-red-600 ml-1">
+											(overdue by {Math.abs(daysUntilDeadline)} days)
+										</span>
+									)}
+								</div>
+								<div>
+									<span className="font-medium">Payout to:</span> {payoutRecipient?.name}
+									{payoutRecipient?.payoutAccount && (
+										<>
+											{" "}
+											({payoutRecipient.payoutAccount.accountHolderName}
+											{payoutRecipient.payoutAccount.accountNumber
+												? ` — ${payoutRecipient.payoutAccount.accountNumber}`
+												: ""}
+											{payoutRecipient.payoutAccount.ifscCode
+												? `, ${payoutRecipient.payoutAccount.ifscCode}`
+												: ""}
+											)
+										</>
+									)}
+								</div>
 							</CardDescription>
 						</div>
 						<div className="flex flex-col gap-2 items-end">
@@ -377,8 +393,8 @@ export function CycleDashboard({
 											<p className="flex items-center gap-2 text-green-700">
 												<CheckCircle2 className="w-5 h-5" />
 												Your payment has been recorded
-												{userPayment.paidOn &&
-													` on ${formatDate(userPayment.paidOn)}`}
+												{userPayment.submittedAt &&
+													` on ${formatDate(userPayment.submittedAt)}`}
 											</p>
 										</div>
 									);
@@ -592,9 +608,9 @@ export function CycleDashboard({
 										</div>
 
 										<div className="flex items-center gap-4">
-											{payment.status === "paid" && payment.paidOn && (
+											{payment.status === "paid" && payment.submittedAt && (
 												<span className="text-muted-foreground">
-													Paid on {formatDate(payment.paidOn)}
+													Submitted on {formatDate(payment.submittedAt)}
 												</span>
 											)}
 											{payment.penalty > 0 && (

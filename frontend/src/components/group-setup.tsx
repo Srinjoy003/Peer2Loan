@@ -205,6 +205,7 @@ export function GroupSetup({
 									value={formData.startMonth}
 									onChange={(e) => updateField("startMonth", e.target.value)}
 									required
+									style={{ colorScheme: 'dark' }}
 								/>
 							</div>
 						</div>
@@ -328,14 +329,10 @@ export function GroupSetup({
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="fixed">Fixed (Join Order)</SelectItem>
-										<SelectItem value="randomized">Randomized</SelectItem>
 									</SelectContent>
 								</Select>
 								<p className="text-muted-foreground">
-									{formData.turnOrderPolicy === "fixed" &&
-										"Members receive payout in the order they joined"}
-									{formData.turnOrderPolicy === "randomized" &&
-										"Random turn assignment at group creation"}
+									Members receive payout in the order they joined
 								</p>
 							</div>
 						</div>

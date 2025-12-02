@@ -199,7 +199,11 @@ export function MemberLedger({
 												: "-"}
 										</TableCell>
 										<TableCell>
-											{payment.paidOn ? formatDate(payment.paidOn) : "-"}
+											{payment.submittedAt
+												? formatDate(payment.submittedAt)
+												: payment.paidOn
+												? formatDate(payment.paidOn)
+												: "-"}
 										</TableCell>
 										<TableCell>
 											<Badge

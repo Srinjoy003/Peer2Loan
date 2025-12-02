@@ -60,8 +60,6 @@ const CycleForm = ({
 
 	const [form, setForm] = useState({
 		cycleNumber: nextCycleNumber.toString(),
-		payoutConfirmed: false,
-		payoutProofReferenceId: "",
 	});
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
@@ -89,13 +87,18 @@ const CycleForm = ({
 				"Content-Type": "application/json",
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
 			};
+			
+			// Calculate deadline based on payment window
+			const cycleMonth = new Date();
+			const paymentEndDay = group.paymentWindow?.endDay || 7;
+			const deadline = new Date(cycleMonth.getFullYear(), cycleMonth.getMonth(), paymentEndDay, 23, 59, 59, 999);
+			
 			const payload = {
 				groupId,
 				cycleNumber: Number(form.cycleNumber),
 				// Backend will auto-assign recipient based on fixed order
-				// Ensure dashboard date/deadline render correctly
-				month: new Date().toISOString(),
-				deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				month: cycleMonth.toISOString(),
+				deadline: deadline.toISOString(),
 				contributions: [],
 				potTotal: 0,
 				payoutExecuted: false,
@@ -126,8 +129,6 @@ const CycleForm = ({
 
 			setForm({
 				cycleNumber: "",
-				payoutConfirmed: false,
-				payoutProofReferenceId: "",
 			});
 			if (onSuccess) onSuccess();
 		} catch (err) {
@@ -219,38 +220,10 @@ const CycleForm = ({
 											</div>
 										);
 									})()}
-								</div>
-							</div>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="payoutProofReferenceId">
-								Payout Proof Reference ID (Optional)
-							</Label>
-							<Input
-								id="payoutProofReferenceId"
-								name="payoutProofReferenceId"
-								value={form.payoutProofReferenceId}
-								onChange={handleChange}
-								placeholder="Reference ID"
-							/>
-						</div>
-
-						<div className="flex items-center space-x-2">
-							<Checkbox
-								id="payoutConfirmed"
-								checked={form.payoutConfirmed}
-								onCheckedChange={(checked) =>
-									setForm({ ...form, payoutConfirmed: checked })
-								}
-							/>
-							<Label htmlFor="payoutConfirmed" className="cursor-pointer">
-								Payout Confirmed
-							</Label>
-						</div>
 					</div>
-
-					{error && (
+				</div>
+			</div>
+		</div>					{error && (
 						<div className="bg-destructive/10 text-destructive px-4 py-2 rounded-md">
 							{error}
 						</div>

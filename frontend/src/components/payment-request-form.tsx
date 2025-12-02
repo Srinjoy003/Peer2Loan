@@ -32,19 +32,11 @@ export function PaymentRequestForm({
 	onSuccess,
 	onCancel,
 }: PaymentRequestFormProps) {
-	const [form, setForm] = useState({
-		amount: expectedAmount.toString(),
-		proof: "",
-	});
+	const [proof, setProof] = useState("");
+	const [testMode, setTestMode] = useState(false);
+	const [submissionDate, setSubmissionDate] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-
-	const handleChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-	) => {
-		const { name, value } = e.target;
-		setForm({ ...form, [name]: value });
-	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -58,22 +50,22 @@ export function PaymentRequestForm({
 				...(token ? { Authorization: `Bearer ${token}` } : {}),
 			};
 
+			const requestBody = {
+				cycleId,
+				memberId,
+				amount: expectedAmount,
+				proof: proof,
+				...(testMode && submissionDate ? { submissionDate } : {}),
+			};
+
 			const res = await fetch("/api/payments/request", {
 				method: "POST",
 				headers,
-				body: JSON.stringify({
-					cycleId,
-					memberId,
-					amount: Number(form.amount),
-					proof: form.proof,
-				}),
+				body: JSON.stringify(requestBody),
 			});
-
-			console.log("Payment request response:", res.status);
 
 			if (!res.ok) {
 				const errorData = await res.json();
-				console.error("Payment request error:", errorData);
 				throw new Error(
 					errorData.message ||
 						errorData.error ||
@@ -82,15 +74,11 @@ export function PaymentRequestForm({
 			}
 
 			const data = await res.json();
-			console.log("Payment request success:", data);
 			toast.success("Payment request submitted!", {
 				description: data.message || "Awaiting admin approval.",
 			});
 
-			setForm({
-				amount: expectedAmount.toString(),
-				proof: "",
-			});
+			setProof("");
 
 			if (onSuccess) onSuccess();
 		} catch (err: any) {
@@ -137,16 +125,12 @@ export function PaymentRequestForm({
 								id="amount"
 								name="amount"
 								type="number"
-								value={form.amount}
-								onChange={handleChange}
-								placeholder={expectedAmount.toString()}
-								required
-								min="0"
-								step="0.01"
+								value={expectedAmount}
+								disabled
+								className="bg-muted"
 							/>
 							<p className="text-sm text-muted-foreground">
-								Expected: {currency}
-								{expectedAmount}
+								You must pay exactly the required amount
 							</p>
 						</div>
 
@@ -157,14 +141,48 @@ export function PaymentRequestForm({
 							<Textarea
 								id="proof"
 								name="proof"
-								value={form.proof}
-								onChange={handleChange}
+								value={proof}
+								onChange={(e) => setProof(e.target.value)}
 								placeholder="Transaction ID, receipt number, or payment details..."
 								rows={3}
 							/>
 							<p className="text-sm text-muted-foreground">
 								Add transaction reference or proof of payment
 							</p>
+						</div>
+
+						<div className="space-y-4 pt-4 border-t">
+							<div className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									id="testMode"
+									checked={testMode}
+									onChange={(e) => setTestMode(e.target.checked)}
+									className="h-4 w-4"
+								/>
+								<Label
+									htmlFor="testMode"
+									className="text-sm font-medium cursor-pointer"
+								>
+									Test Mode (Custom Submission Date)
+								</Label>
+							</div>
+
+							{testMode && (
+								<div className="space-y-2">
+									<Label htmlFor="submissionDate">Submission Date</Label>
+									<Input
+										id="submissionDate"
+										type="date"
+										value={submissionDate}
+										onChange={(e) => setSubmissionDate(e.target.value)}
+										placeholder="Select date"
+									/>
+									<p className="text-sm text-muted-foreground">
+										Set a custom date to test late fee calculation
+									</p>
+								</div>
+							)}
 						</div>
 					</div>
 				</CardContent>

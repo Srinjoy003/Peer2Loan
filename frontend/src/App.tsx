@@ -164,6 +164,7 @@ export default function App() {
 		recipient: Member | undefined;
 		amount: number;
 	} | null>(null);
+	const [transactionId, setTransactionId] = useState("");
 
 	// Restore user from sessionStorage on mount
 	useEffect(() => {
@@ -385,22 +386,20 @@ export default function App() {
 
 		try {
 			const token = sessionStorage.getItem("token");
-			const response = await fetch(
-				`http://localhost:4000/api/cycles/${currentCycle.id}/execute-payout`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						groupId: selectedGroup.id || (selectedGroup as any)._id,
-						proof: `TXN-${Date.now()}`, // Optional: Add proof/receipt
-					}),
-				}
-			);
-
-			if (!response.ok) {
+		const response = await fetch(
+			`http://localhost:4000/api/cycles/${currentCycle.id}/execute-payout`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					groupId: selectedGroup.id || (selectedGroup as any)._id,
+					transactionId: transactionId || `AUTO-${Date.now()}`,
+				}),
+			}
+		);			if (!response.ok) {
 				const errorData = await response.json();
 				throw new Error(errorData.error || "Failed to execute payout");
 			}
@@ -425,6 +424,7 @@ export default function App() {
 			// Close modal
 			setShowPayoutConfirm(false);
 			setPayoutDetails(null);
+			setTransactionId("");
 
 			alert(
 				`✅ Payout executed successfully!\n\nAmount: ${formatCurrency(
@@ -440,6 +440,7 @@ export default function App() {
 			alert(`❌ Failed to execute payout: ${error.message}`);
 			setShowPayoutConfirm(false);
 			setPayoutDetails(null);
+			setTransactionId("");
 		}
 	};
 
@@ -595,7 +596,13 @@ export default function App() {
 									<div className="flex justify-end gap-2 overflow-visible">
 										<Button
 											onClick={() => setShowAddCycle(true)}
-											disabled={!!currentCycle}
+											disabled={(() => {
+											const contributingMembers = members.filter(
+												(m) => m.groupId === selectedGroupId && m.role !== "auditor"
+											);
+											const groupCycles = cycles.filter((c) => c.groupId === selectedGroupId);
+											return !!currentCycle || groupCycles.length >= contributingMembers.length;
+										})()}
 										>
 											<PlusCircle className="w-4 h-4 mr-2" />
 											Add New Cycle
@@ -678,15 +685,23 @@ export default function App() {
 											? "You are not part of any group."
 											: "No timeline data yet."}
 									</p>
-									{!showEmpty && isAdmin && (
-										<Button
-											onClick={() => setShowAddCycle(true)}
-											className="mt-4"
-										>
-											<PlusCircle className="w-4 h-4 mr-2" />
-											Add First Cycle
-										</Button>
-									)}
+									{!showEmpty && isAdmin && (() => {
+										const contributingMembers = members.filter(
+											(m) => m.groupId === selectedGroupId && m.role !== "auditor"
+										);
+										const groupCycles = cycles.filter((c) => c.groupId === selectedGroupId);
+										const maxCyclesReached = groupCycles.length >= contributingMembers.length;
+										return (
+											<Button
+												onClick={() => setShowAddCycle(true)}
+												className="mt-4"
+												disabled={maxCyclesReached}
+											>
+												<PlusCircle className="w-4 h-4 mr-2" />
+												Add First Cycle
+											</Button>
+										);
+									})()}
 								</CardContent>
 							</Card>
 						) : (
@@ -694,7 +709,13 @@ export default function App() {
 								<div className="flex justify-end">
 									<Button
 										onClick={() => setShowAddCycle(true)}
-										disabled={!!currentCycle}
+										disabled={(() => {
+											const contributingMembers = members.filter(
+												(m) => m.groupId === selectedGroupId && m.role !== "auditor"
+											);
+											const groupCycles = cycles.filter((c) => c.groupId === selectedGroupId);
+											return !!currentCycle || groupCycles.length >= contributingMembers.length;
+										})()}
 									>
 										<PlusCircle className="w-4 h-4 mr-2" />
 										Add New Cycle
@@ -1113,12 +1134,30 @@ export default function App() {
 								)}
 							</p>
 						</div>
+						<div className="space-y-2">
+							<label htmlFor="transactionId" className="text-sm font-medium">
+								Transaction ID <span className="text-red-500">*</span>
+							</label>
+							<input
+								id="transactionId"
+								type="text"
+								value={transactionId}
+								onChange={(e) => setTransactionId(e.target.value)}
+								placeholder="Enter transaction/reference ID"
+								className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
+								required
+							/>
+							<p className="text-xs text-muted-foreground">
+								Enter the payment transaction ID or reference number
+							</p>
+						</div>
 					</div>
 					<AlertDialogFooter className="mt-4 gap-3">
 						<AlertDialogCancel
 							onClick={() => {
 								setShowPayoutConfirm(false);
 								setPayoutDetails(null);
+								setTransactionId("");
 							}}
 							className="h-9"
 						>

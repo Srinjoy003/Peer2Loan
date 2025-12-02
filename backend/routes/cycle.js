@@ -73,7 +73,16 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 			});
 		}
 
-		// Get all executed payouts for this group
+	// Check if max cycles limit reached (max = number of contributing members)
+	const maxCycles = contributingMembers.length;
+	console.log(`🔍 Cycle validation: cycleNumber=${cycleNumber}, maxCycles=${maxCycles}, contributingMembers=${contributingMembers.length}`);
+	
+	if (cycleNumber > maxCycles) {
+		return res.status(400).json({
+			error: "Maximum cycles reached",
+			message: `Cannot create cycle #${cycleNumber}. Maximum allowed cycles is ${maxCycles} (equal to number of contributing members).`,
+		});
+	}		// Get all executed payouts for this group
 		const executedCycles = await db
 			.collection("cycles")
 			.find({ groupId: groupId, payoutExecuted: true })
@@ -149,8 +158,18 @@ router.post("/", verifyToken, isGroupAdmin, async (req, res) => {
 		const start = group.startMonth ? new Date(group.startMonth) : new Date();
 		const expectedDate = addMonths(start, interval * (Number(cycleNumber) - 1));
 
+		// Calculate deadline based on payment window
+		const paymentEndDay = group.paymentWindow?.endDay || 7;
+		const deadline = new Date(
+			expectedDate.getFullYear(),
+			expectedDate.getMonth(),
+			paymentEndDay,
+			23, 59, 59, 999
+		);
+
 		const cycleData = Object.assign({}, req.body, {
 			month: expectedDate.toISOString(),
+			deadline: deadline.toISOString(),
 			payoutRecipientId,
 		});
 
@@ -264,19 +283,26 @@ router.post("/:id/create-payments", verifyToken, async (req, res) => {
 			.toArray();
 
 		// Check which members already have payment records
+		// Check both ObjectId and string formats for backward compatibility
 		const existingPayments = await db
 			.collection("payments")
-			.find({ cycleId: cycleId })
+			.find({
+				$or: [{ cycleId: new ObjectId(cycleId) }, { cycleId: cycleId }],
+			})
 			.toArray();
 
-		const existingMemberIds = new Set(existingPayments.map((p) => p.memberId));
+		const existingMemberIds = new Set(
+			existingPayments.map((p) =>
+				typeof p.memberId === "string" ? p.memberId : p.memberId.toString()
+			)
+		);
 
 		// Create payment records for members who don't have them
 		const newPaymentRecords = members
 			.filter((member) => !existingMemberIds.has(member._id.toString()))
 			.map((member) => ({
-				cycleId: cycleId,
-				memberId: member._id.toString(),
+				cycleId: new ObjectId(cycleId), // Store as ObjectId for consistency
+				memberId: member._id, // member._id is already ObjectId
 				groupId: cycle.groupId,
 				amount: group.monthlyContribution,
 				status: "pending",
@@ -311,7 +337,7 @@ router.post(
 	async (req, res) => {
 		try {
 			const cycleId = req.params.id;
-			const { proof } = req.body; // Optional proof of payout (receipt, transaction ID, etc.)
+			const { transactionId } = req.body; // Transaction ID from payout execution
 			const db = getDB();
 
 			// Get cycle
@@ -372,39 +398,37 @@ router.post(
 			const participationRate = (paidPayments.length / payments.length) * 100;
 			const completedOnTime = new Date() <= new Date(cycle.deadline);
 
-			// Update cycle - mark payout as executed
-			await db.collection("cycles").updateOne(
-				{ _id: new ObjectId(cycleId) },
-				{
-					$set: {
-						payoutExecuted: true,
-						potTotal: potTotal,
-						totalContributions: totalContributions,
-						totalPenalties: totalPenalties,
-						participationRate: participationRate,
-						paidMemberCount: paidPayments.length,
-						totalMemberCount: payments.length,
-						completedOnTime: completedOnTime,
-						payoutExecutedAt: new Date().toISOString(),
-						payoutExecutedBy: req.user.email,
-						payoutProof: proof || "",
-						status: "completed",
-						completedAt: new Date().toISOString(),
-					},
-				}
-			);
-
-			// Create transaction ledger entry for audit trail
+		// Update cycle - mark payout as executed
+		await db.collection("cycles").updateOne(
+			{ _id: new ObjectId(cycleId) },
+			{
+				$set: {
+					payoutExecuted: true,
+					potTotal: potTotal,
+					totalContributions: totalContributions,
+					totalPenalties: totalPenalties,
+					participationRate: participationRate,
+					paidMemberCount: paidPayments.length,
+					totalMemberCount: payments.length,
+					completedOnTime: completedOnTime,
+					payoutExecutedAt: new Date().toISOString(),
+					payoutExecutedBy: req.user.email,
+					transactionId: transactionId || "",
+					status: "completed",
+					completedAt: new Date().toISOString(),
+				},
+			}
+		);			// Create transaction ledger entry for audit trail
 			await db.collection("transactions").insertOne({
-				groupId: cycle.groupId,
-				cycleId: cycleId,
-				type: "payout",
-				amount: potTotal,
-				recipientId: cycle.payoutRecipientId,
-				executedBy: req.user.email,
-				executedAt: new Date().toISOString(),
-				reference: proof || "",
-				metadata: {
+			groupId: cycle.groupId,
+			cycleId: cycleId,
+			type: "payout",
+			amount: potTotal,
+			recipientId: cycle.payoutRecipientId,
+			executedBy: req.user.email,
+			executedAt: new Date().toISOString(),
+			transactionId: transactionId || "",
+			metadata: {
 					cycleNumber: cycle.cycleNumber,
 					month: cycle.month,
 					contributions: totalContributions,
